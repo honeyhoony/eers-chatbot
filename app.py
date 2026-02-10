@@ -39,10 +39,19 @@ with tab_chat:
     </div>
     """, unsafe_allow_html=True)
 
+    st.info("ℹ️ **안내**: 본 챗봇은 관리자가 등록한 **KEPCO EERS 관련 문서에 기반하여** 답변합니다. "
+            "등록된 문서에 없는 내용이나 EERS와 무관한 질문에는 답변이 제한됩니다.")
+
     # 채팅 히스토리 초기화
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "안녕하세요! ⚡ KEPCO EERS 챗봇입니다.\n\nEERS(에너지효율향상의무화제도) 관련 궁금한 점을 질문해주세요.\n\n예시 질문:\n- EERS 사업 참여 절차가 어떻게 되나요?\n- 고효율 기기 설치 시 지원금은 얼마인가요?\n- 대구본부 공고 내용이 궁금합니다."}
+            {"role": "assistant", "content": "안녕하세요! ⚡ KEPCO EERS 챗봇입니다.\n\n"
+             "📌 **본 챗봇은 등록된 EERS 문서를 기반으로만 답변합니다.**\n"
+             "문서에 없는 내용이나 EERS와 무관한 질문에는 답변이 제한됩니다.\n\n"
+             "예시 질문:\n"
+             "- EERS 사업 참여 절차가 어떻게 되나요?\n"
+             "- 고효율 기기 설치 시 지원금은 얼마인가요?\n"
+             "- 대구본부 공고 내용이 궁금합니다."}
         ]
 
     # 이전 메시지 표시
