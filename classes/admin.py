@@ -90,21 +90,38 @@ def render_admin_panel():
 
     st.success("✅ 관리자 인증 완료")
 
-    # -- 문서 업로드 --
+    # -- 문서 업로드 (일괄 지원) --
     st.subheader("📁 문서 업로드")
-    uploaded_file = st.file_uploader(
-        "KEPCO EERS 관련 PDF 파일을 업로드하세요",
+    uploaded_files = st.file_uploader(
+        "KEPCO EERS 관련 PDF 파일을 업로드하세요 (여러 파일 선택 가능)",
         type=["pdf"],
-        help="절차서, 기기별 공고문, 대구본부 공고문 등"
+        accept_multiple_files=True,
+        help="절차서, 기기별 공고문, 대구본부 공고문 등 — Ctrl/Shift 클릭으로 다중 선택"
     )
-    if uploaded_file:
-        if st.button("📤 업로드 & 인덱싱 시작"):
-            upload_document(uploaded_file)
+    if uploaded_files:
+        st.info(f"📎 {len(uploaded_files)}개 파일 선택됨")
+        if st.button(f"📤 {len(uploaded_files)}개 파일 일괄 업로드 & 인덱싱 시작"):
+            progress_bar = st.progress(0, text="업로드 준비 중...")
+            success_count = 0
+            fail_count = 0
+            for i, file in enumerate(uploaded_files):
+                progress_bar.progress(
+                    (i) / len(uploaded_files),
+                    text=f"({i+1}/{len(uploaded_files)}) {file.name} 처리 중..."
+                )
+                if upload_document(file):
+                    success_count += 1
+                else:
+                    fail_count += 1
+            progress_bar.progress(1.0, text="완료!")
+            st.balloons()
+            st.success(f"🎉 일괄 업로드 완료! 성공: {success_count}개 / 실패: {fail_count}개")
 
     # -- 등록된 문서 목록 --
     st.subheader("📋 등록된 문서 목록")
     docs = list_documents()
     if docs:
+        st.caption(f"총 {len(docs)}개 문서 등록됨")
         for doc in docs:
             col1, col2 = st.columns([4, 1])
             col1.write(f"📄 {doc}")
@@ -114,3 +131,4 @@ def render_admin_panel():
                     st.rerun()
     else:
         st.info("아직 등록된 문서가 없습니다.")
+
