@@ -45,12 +45,21 @@ def upload_document(uploaded_file) -> bool:
         safe_name = sanitize_filename(original_name)
 
         # 1. Supabase Storage에 업로드 (안전한 파일명 사용)
-        with st.spinner(f"📤 '{original_name}' 업로드 중..."):
-            supabase.storage.from_(BUCKET_NAME).upload(
-                path=safe_name,
-                file=file_bytes,
-                file_options={"content-type": "application/pdf", "upsert": "true"}
-            )
+        storage_ok = False
+        with st.spinner(f"📤 파일 업로드 중..."):
+            try:
+                supabase.storage.from_(BUCKET_NAME).upload(
+                    file=file_bytes,
+                    path=safe_name,
+                    file_options={
+                        "content-type": "application/pdf",
+                        "x-upsert": "true"
+                    }
+                )
+                storage_ok = True
+            except Exception as storage_err:
+                st.warning(f"⚠️ Storage 저장 건너뜀 (인덱싱은 계속 진행): {str(storage_err)[:80]}")
+                storage_ok = False
 
         # 2. PDF 텍스트 추출
         with st.spinner("📄 텍스트 추출 중..."):

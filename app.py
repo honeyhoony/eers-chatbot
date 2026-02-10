@@ -171,8 +171,28 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ========== 관할지사 연락처 데이터 ==========
+BRANCH_OFFICES = [
+    {"사업소": "대구본부 직할 (북구)", "전화번호": "053-350-2452", "관할구역": "대구 북구"},
+    {"사업소": "대구본부 직할 (중구)", "전화번호": "053-350-2183", "관할구역": "대구 중구"},
+    {"사업소": "동대구지사", "전화번호": "053-757-2216", "관할구역": "동구, 수성구, 달성군(가창면)"},
+    {"사업소": "경주지사", "전화번호": "054-740-2242", "관할구역": "경주시 전역"},
+    {"사업소": "남대구지사", "전화번호": "053-630-2226", "관할구역": "달서구 일부, 달성군 일부(화원, 논공, 옥포, 현풍, 유가, 구지면), 용산동 일부"},
+    {"사업소": "서대구지사", "전화번호": "053-550-2221", "관할구역": "서구, 남구 전역, 달성군 일부(다사읍, 하빈면), 달서구 일부, 용산동 일부"},
+    {"사업소": "포항지사", "전화번호": "054-271-7226", "관할구역": "포항시 남구 전역, 북구 일부(연일, 오천, 구룡포읍 등)"},
+    {"사업소": "경산지사", "전화번호": "053-810-4122", "관할구역": "경산시 전역"},
+    {"사업소": "김천지사", "전화번호": "054-429-5226", "관할구역": "김천시 전역"},
+    {"사업소": "영천지사", "전화번호": "054-330-2222", "관할구역": "영천시 전역"},
+    {"사업소": "칠곡지사", "전화번호": "054-970-3211", "관할구역": "왜관읍, 석적읍, 북삼읍, 기산면, 약목면, 지천면, 동명면 등"},
+    {"사업소": "성주지사", "전화번호": "054-930-2221", "관할구역": "성주군 전역"},
+    {"사업소": "청도지사", "전화번호": "054-370-4253", "관할구역": "청도군 전역"},
+    {"사업소": "북포항지사", "전화번호": "054-260-4224", "관할구역": "포항시 북구 일부(흥해읍, 송라면, 청하면, 신광면, 죽장면, 기계면, 기북면)"},
+    {"사업소": "고령지사", "전화번호": "054-950-2221", "관할구역": "고령군 전역"},
+    {"사업소": "영덕지사", "전화번호": "054-730-3254", "관할구역": "영덕군 전역"},
+]
+
 # ========== 탭 구성 ==========
-tab_chat, tab_admin = st.tabs(["💬 챗봇", "⚙️ 관리자"])
+tab_chat, tab_contacts, tab_admin = st.tabs(["💬 챗봇", "📞 관할지사 연락처", "⚙️ 관리자"])
 
 # ========== 예시 질문 목록 ==========
 EXAMPLE_QUESTIONS = [
@@ -260,6 +280,51 @@ with tab_chat:
             st.markdown(response)
 
         st.session_state.messages.append({"role": "assistant", "content": response})
+
+# ========== 관할지사 연락처 탭 ==========
+with tab_contacts:
+    st.markdown("""
+    <div class="hero-container" style="padding: 1.5rem;">
+        <div class="hero-icon">📞</div>
+        <h1 class="hero-title" style="font-size: 1.4rem;">관할지사 연락처</h1>
+        <p class="hero-subtitle">한국전력공사 대구본부 사업소 효율향상사업 담당</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 검색 필터
+    search_area = st.text_input("🔍 지역명으로 검색 (예: 경산, 포항, 서구)", placeholder="지역명 입력...")
+
+    st.markdown("---")
+
+    filtered = BRANCH_OFFICES
+    if search_area:
+        filtered = [b for b in BRANCH_OFFICES
+                    if search_area in b["사업소"] or search_area in b["관할구역"]]
+
+    if filtered:
+        for office in filtered:
+            st.markdown(f"""
+            <div style="background: rgba(26,31,46,0.6); border: 1px solid rgba(255,107,53,0.15);
+                        border-radius: 12px; padding: 1rem; margin-bottom: 0.7rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: #FF6B35; font-size: 1rem;">🏢 {office['사업소']}</strong><br>
+                        <span style="color: #8B95A5; font-size: 0.85rem;">📍 {office['관할구역']}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="color: #FFB347; font-size: 1.1rem; font-weight: 600;">📞 {office['전화번호']}</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("해당 지역의 사업소를 찾을 수 없습니다.")
+
+    st.markdown("""
+    <div class="notice-banner" style="margin-top: 1rem;">
+        💡 효율향상사업 관련 자세한 상담은 <strong>관할 지사 담당자</strong>에게 전화 문의해주세요.
+    </div>
+    """, unsafe_allow_html=True)
 
 # ========== 관리자 탭 ==========
 with tab_admin:
