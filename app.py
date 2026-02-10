@@ -8,7 +8,7 @@ from classes.admin import render_admin_panel
 
 # ========== 페이지 설정 ==========
 st.set_page_config(
-    page_title="KEPCO EERS 챗봇",
+    page_title="대구본부 효율향상사업 챗봇",
     page_icon="⚡",
     layout="centered",
     initial_sidebar_state="collapsed"
