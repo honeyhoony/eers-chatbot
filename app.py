@@ -1,6 +1,6 @@
 """
-KEPCO EERS 챗봇 - 메인 애플리케이션
-에너지효율향상의무화제도 관련 문서 기반 Q&A 챗봇
+한국전력 대구본부 효율향상사업 AI 상담원
+문서 기반 Q&A 챗봇
 """
 import streamlit as st
 from classes.rag import ask
@@ -8,166 +8,194 @@ from classes.admin import render_admin_panel
 
 # ========== 페이지 설정 ==========
 st.set_page_config(
-    page_title="KEPCO EERS 챗봇",
+    page_title="한국전력 효율향상사업 도우미",
     page_icon="⚡",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# ========== 프리미엄 CSS ==========
+# ========== 미니멀 CSS (흑백 + 블루 포인트) ==========
 st.markdown("""
 <style>
-    /* ===== 전체 배경 & 폰트 ===== */
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
 
-    * { font-family: 'Noto Sans KR', sans-serif !important; }
-
-    .stApp {
-        background: linear-gradient(180deg, #0E1117 0%, #151B28 100%);
+    /* 전역 폰트 - 아이콘 제외 */
+    html, body, [class*="css"] {
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
 
-    /* ===== 헤더 영역 ===== */
-    .hero-container {
-        background: linear-gradient(135deg, #1a1f2e 0%, #2d1f3d 50%, #1a2f3e 100%);
-        border: 1px solid rgba(255, 107, 53, 0.2);
-        border-radius: 20px;
+    /* 배경 */
+    .stApp {
+        background: #0a0a0a;
+    }
+
+    /* 숨김 */
+    footer, #MainMenu, header { visibility: hidden; }
+
+    /* ===== 헤더 ===== */
+    .header-box {
+        border: 1px solid #222;
+        border-radius: 16px;
         padding: 2rem 1.5rem;
         text-align: center;
-        margin-bottom: 1rem;
-        position: relative;
-        overflow: hidden;
+        margin-bottom: 1.2rem;
+        background: #111;
     }
-    .hero-container::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,107,53,0.05) 0%, transparent 70%);
-        animation: pulse 4s ease-in-out infinite;
-    }
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); opacity: 0.5; }
-        50% { transform: scale(1.1); opacity: 1; }
-    }
-    .hero-icon {
-        font-size: 3rem;
-        margin-bottom: 0.5rem;
-    }
-    .hero-title {
-        font-size: 1.8rem;
+    .header-box h1 {
+        font-size: 1.5rem;
         font-weight: 700;
-        background: linear-gradient(90deg, #FF6B35, #FFB347);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 0;
+        color: #fff;
+        margin: 0 0 0.3rem 0;
+        letter-spacing: -0.02em;
     }
-    .hero-subtitle {
-        color: #8B95A5;
-        font-size: 0.9rem;
-        margin-top: 0.3rem;
+    .header-box p {
+        color: #666;
+        font-size: 0.85rem;
+        margin: 0;
     }
 
     /* ===== 안내 배너 ===== */
-    .notice-banner {
-        background: rgba(255, 107, 53, 0.08);
-        border-left: 3px solid #FF6B35;
+    .info-bar {
+        background: #111;
+        border: 1px solid #222;
+        border-left: 3px solid #3b82f6;
         border-radius: 0 10px 10px 0;
         padding: 0.7rem 1rem;
         margin-bottom: 1rem;
         font-size: 0.82rem;
-        color: #B0B8C8;
+        color: #888;
     }
-    .notice-banner strong { color: #FF6B35; }
+    .info-bar strong { color: #ccc; }
 
     /* ===== 채팅 메시지 ===== */
     .stChatMessage {
-        border-radius: 16px !important;
+        background: #111 !important;
+        border: 1px solid #1a1a1a !important;
+        border-radius: 12px !important;
         padding: 1rem !important;
-        margin-bottom: 0.8rem !important;
-        border: 1px solid rgba(255,255,255,0.05) !important;
-        backdrop-filter: blur(10px) !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* 아바타 숨기고 심플하게 */
+    [data-testid="stChatMessageAvatarCustom"],
+    [data-testid="chatAvatarIcon-user"],
+    [data-testid="chatAvatarIcon-assistant"] {
+        display: none !important;
     }
 
     /* ===== 채팅 입력 ===== */
     .stChatInput > div {
-        border-radius: 25px !important;
-        border: 1px solid rgba(255, 107, 53, 0.3) !important;
-        background: rgba(26, 31, 46, 0.8) !important;
+        border-radius: 12px !important;
+        border: 1px solid #222 !important;
+        background: #111 !important;
     }
     .stChatInput > div:focus-within {
-        border-color: #FF6B35 !important;
-        box-shadow: 0 0 15px rgba(255, 107, 53, 0.15) !important;
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 1px #3b82f6 !important;
     }
 
-    /* ===== 탭 스타일 ===== */
+    /* ===== 탭 ===== */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: rgba(26, 31, 46, 0.5);
-        border-radius: 12px;
-        padding: 4px;
+        gap: 0;
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 10px;
+        padding: 3px;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 8px 20px;
         font-weight: 500;
+        color: #666 !important;
     }
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #FF6B35, #FF8B55) !important;
-        color: white !important;
+        background: #1a1a1a !important;
+        color: #fff !important;
     }
 
     /* ===== 버튼 ===== */
     .stButton > button {
-        border-radius: 12px;
+        border-radius: 8px;
         font-weight: 500;
-        border: 1px solid rgba(255, 107, 53, 0.3);
-        transition: all 0.3s ease;
+        border: 1px solid #222;
+        background: #111;
+        color: #ccc;
+        transition: all 0.15s ease;
     }
     .stButton > button:hover {
-        border-color: #FF6B35;
-        box-shadow: 0 0 20px rgba(255, 107, 53, 0.2);
-        transform: translateY(-1px);
+        border-color: #3b82f6;
+        color: #fff;
+        background: #0f1a2e;
+    }
+    /* Primary 버튼 */
+    .stButton > button[kind="primary"],
+    .stButton > button[data-testid="stBaseButton-primary"] {
+        background: #3b82f6 !important;
+        color: #fff !important;
+        border-color: #3b82f6 !important;
+    }
+    .stButton > button[kind="primary"]:hover,
+    .stButton > button[data-testid="stBaseButton-primary"]:hover {
+        background: #2563eb !important;
     }
 
     /* ===== 파일 업로더 ===== */
     .stFileUploader > div {
-        border-radius: 16px !important;
-        border: 2px dashed rgba(255, 107, 53, 0.3) !important;
+        border-radius: 12px !important;
+        border: 1px dashed #333 !important;
+        background: #111 !important;
     }
 
     /* ===== 프로그레스 바 ===== */
     .stProgress > div > div {
-        background: linear-gradient(90deg, #FF6B35, #FFB347) !important;
+        background: #3b82f6 !important;
     }
-
-    /* ===== 숨김 요소 ===== */
-    footer { visibility: hidden; }
-    #MainMenu { visibility: hidden; }
-    header { visibility: hidden; }
 
     /* ===== 스피너 ===== */
     .stSpinner > div > div {
-        border-top-color: #FF6B35 !important;
+        border-top-color: #3b82f6 !important;
     }
 
-    /* ===== 예시 질문 카드 ===== */
-    .example-card {
-        background: rgba(26, 31, 46, 0.6);
-        border: 1px solid rgba(255, 107, 53, 0.15);
-        border-radius: 12px;
-        padding: 0.6rem 1rem;
-        margin: 0.3rem 0;
-        font-size: 0.85rem;
-        color: #B0B8C8;
-        transition: all 0.2s ease;
+    /* ===== 연락처 카드 ===== */
+    .contact-card {
+        background: #111;
+        border: 1px solid #1a1a1a;
+        border-radius: 10px;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
-    .example-card:hover {
-        border-color: rgba(255, 107, 53, 0.4);
-        background: rgba(255, 107, 53, 0.05);
+    .contact-card:hover {
+        border-color: #333;
     }
-    .example-card .emoji { margin-right: 0.5rem; }
+    .contact-name {
+        font-weight: 600;
+        color: #e5e5e5;
+        font-size: 0.92rem;
+    }
+    .contact-area {
+        color: #555;
+        font-size: 0.8rem;
+        margin-top: 2px;
+    }
+    .contact-phone {
+        color: #3b82f6;
+        font-weight: 600;
+        font-size: 0.95rem;
+        white-space: nowrap;
+    }
+
+    /* ===== 텍스트 입력 ===== */
+    .stTextInput > div > div {
+        border-radius: 8px !important;
+        border-color: #222 !important;
+        background: #111 !important;
+    }
+    .stTextInput > div > div:focus-within {
+        border-color: #3b82f6 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -177,24 +205,21 @@ BRANCH_OFFICES = [
     {"사업소": "대구본부 직할 (중구)", "전화번호": "053-350-2183", "관할구역": "대구 중구"},
     {"사업소": "동대구지사", "전화번호": "053-757-2216", "관할구역": "동구, 수성구, 달성군(가창면)"},
     {"사업소": "경주지사", "전화번호": "054-740-2242", "관할구역": "경주시 전역"},
-    {"사업소": "남대구지사", "전화번호": "053-630-2226", "관할구역": "달서구 일부, 달성군 일부(화원, 논공, 옥포, 현풍, 유가, 구지면), 용산동 일부"},
-    {"사업소": "서대구지사", "전화번호": "053-550-2221", "관할구역": "서구, 남구 전역, 달성군 일부(다사읍, 하빈면), 달서구 일부, 용산동 일부"},
-    {"사업소": "포항지사", "전화번호": "054-271-7226", "관할구역": "포항시 남구 전역, 북구 일부(연일, 오천, 구룡포읍 등)"},
+    {"사업소": "남대구지사", "전화번호": "053-630-2226", "관할구역": "달서구 일부, 달성군 일부(화원, 논공, 옥포, 현풍, 유가, 구지면)"},
+    {"사업소": "서대구지사", "전화번호": "053-550-2221", "관할구역": "서구, 남구 전역, 달성군 일부(다사읍, 하빈면), 달서구 일부"},
+    {"사업소": "포항지사", "전화번호": "054-271-7226", "관할구역": "포항시 남구 전역, 북구 일부"},
     {"사업소": "경산지사", "전화번호": "053-810-4122", "관할구역": "경산시 전역"},
     {"사업소": "김천지사", "전화번호": "054-429-5226", "관할구역": "김천시 전역"},
     {"사업소": "영천지사", "전화번호": "054-330-2222", "관할구역": "영천시 전역"},
     {"사업소": "칠곡지사", "전화번호": "054-970-3211", "관할구역": "왜관읍, 석적읍, 북삼읍, 기산면, 약목면, 지천면, 동명면 등"},
     {"사업소": "성주지사", "전화번호": "054-930-2221", "관할구역": "성주군 전역"},
     {"사업소": "청도지사", "전화번호": "054-370-4253", "관할구역": "청도군 전역"},
-    {"사업소": "북포항지사", "전화번호": "054-260-4224", "관할구역": "포항시 북구 일부(흥해읍, 송라면, 청하면, 신광면, 죽장면, 기계면, 기북면)"},
+    {"사업소": "북포항지사", "전화번호": "054-260-4224", "관할구역": "포항시 북구 일부(흥해읍, 송라면, 청하면 등)"},
     {"사업소": "고령지사", "전화번호": "054-950-2221", "관할구역": "고령군 전역"},
     {"사업소": "영덕지사", "전화번호": "054-730-3254", "관할구역": "영덕군 전역"},
 ]
 
-# ========== 탭 구성 ==========
-tab_chat, tab_contacts, tab_admin = st.tabs(["💬 챗봇", "📞 관할지사 연락처", "⚙️ 관리자"])
-
-# ========== 예시 질문 목록 ==========
+# ========== 예시 질문 ==========
 EXAMPLE_QUESTIONS = [
     "효율향상사업 참여 절차가 어떻게 되나요?",
     "고효율 LED 지원 기준과 지원금이 궁금합니다",
@@ -204,97 +229,86 @@ EXAMPLE_QUESTIONS = [
     "농어민 대상 효율향상사업 지원 기준은?",
 ]
 
+# ========== 탭 구성 ==========
+tab_chat, tab_contacts, tab_admin = st.tabs(["💬 상담", "📞 연락처", "⚙️ 관리"])
+
 # ========== 챗봇 탭 ==========
 with tab_chat:
-    # 히어로 헤더
     st.markdown("""
-    <div class="hero-container">
-        <div class="hero-icon">⚡</div>
-        <h1 class="hero-title">한국전력 대구본부<br>효율향상사업 도우미</h1>
-        <p class="hero-subtitle">설비효율향상사업 관련 궁금한 점을 물어보세요</p>
+    <div class="header-box">
+        <h1>⚡ 한국전력 대구본부<br>효율향상사업 도우미</h1>
+        <p>설비효율향상사업 관련 궁금한 점을 물어보세요</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # 안내 배너
     st.markdown("""
-    <div class="notice-banner">
-        📌 본 챗봇은 <strong>한국전력 효율향상사업 관련 문서에 기반하여</strong> 답변합니다.<br>
-        자세한 사항은 <strong>한전 관할지사 효율향상사업 담당자</strong>에게 문의해주세요.
+    <div class="info-bar">
+        📌 본 챗봇은 <strong>효율향상사업 관련 문서에 기반하여</strong> 답변합니다.
+        자세한 사항은 <strong>관할지사 담당자</strong>에게 문의해주세요.
     </div>
     """, unsafe_allow_html=True)
 
-    # 채팅 히스토리 초기화
+    # 세션 초기화
     if "messages" not in st.session_state:
         st.session_state.messages = []
-
-    # 예시 질문 선택 상태
     if "selected_example" not in st.session_state:
         st.session_state.selected_example = None
 
-    # 예시 질문 버튼 (대화가 없을 때만 표시)
+    # 예시 질문 (대화 없을 때)
     if len(st.session_state.messages) == 0:
-        st.markdown("#### 💡 이런 것들을 물어보세요")
+        st.markdown("##### 💡 자주 묻는 질문")
         cols = st.columns(2)
-        for i, question in enumerate(EXAMPLE_QUESTIONS):
+        for i, q in enumerate(EXAMPLE_QUESTIONS):
             with cols[i % 2]:
-                if st.button(f"💬 {question}", key=f"example_{i}", use_container_width=True):
-                    st.session_state.selected_example = question
+                if st.button(q, key=f"ex_{i}", use_container_width=True):
+                    st.session_state.selected_example = q
                     st.rerun()
 
-    # 이전 메시지 표시
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # 메시지 표시
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    # 예시 질문 클릭 처리
+    # 예시 질문 처리
     if st.session_state.selected_example:
         prompt = st.session_state.selected_example
         st.session_state.selected_example = None
-
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-
         with st.chat_message("assistant"):
-            with st.spinner("🔍 문서 검색 및 답변 생성 중..."):
+            with st.spinner("답변 생성 중..."):
                 try:
                     response = ask(prompt)
                 except Exception as e:
-                    response = f"⚠️ 오류가 발생했습니다: {str(e)}\n\n관리자에게 문의하거나 문서가 업로드되어 있는지 확인해주세요."
+                    response = f"오류가 발생했습니다: {str(e)}"
             st.markdown(response)
-
         st.session_state.messages.append({"role": "assistant", "content": response})
 
     # 직접 입력
-    if prompt := st.chat_input("💬 효율향상사업에 대해 질문해주세요..."):
+    if prompt := st.chat_input("효율향상사업에 대해 질문해주세요..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-
         with st.chat_message("assistant"):
-            with st.spinner("🔍 문서 검색 및 답변 생성 중..."):
+            with st.spinner("답변 생성 중..."):
                 try:
                     response = ask(prompt)
                 except Exception as e:
-                    response = f"⚠️ 오류가 발생했습니다: {str(e)}\n\n관리자에게 문의하거나 문서가 업로드되어 있는지 확인해주세요."
+                    response = f"오류가 발생했습니다: {str(e)}"
             st.markdown(response)
-
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-# ========== 관할지사 연락처 탭 ==========
+# ========== 연락처 탭 ==========
 with tab_contacts:
     st.markdown("""
-    <div class="hero-container" style="padding: 1.5rem;">
-        <div class="hero-icon">📞</div>
-        <h1 class="hero-title" style="font-size: 1.4rem;">관할지사 연락처</h1>
-        <p class="hero-subtitle">한국전력공사 대구본부 사업소 효율향상사업 담당</p>
+    <div class="header-box" style="padding: 1.5rem;">
+        <h1 style="font-size: 1.3rem;">📞 관할지사 연락처</h1>
+        <p>한국전력공사 대구본부 사업소 효율향상사업 담당</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # 검색 필터
-    search_area = st.text_input("🔍 지역명으로 검색 (예: 경산, 포항, 서구)", placeholder="지역명 입력...")
-
-    st.markdown("---")
+    search_area = st.text_input("지역명으로 검색", placeholder="예: 경산, 포항, 서구...")
 
     filtered = BRANCH_OFFICES
     if search_area:
@@ -304,24 +318,19 @@ with tab_contacts:
     if filtered:
         for office in filtered:
             st.markdown(f"""
-            <div style="background: rgba(26,31,46,0.6); border: 1px solid rgba(255,107,53,0.15);
-                        border-radius: 12px; padding: 1rem; margin-bottom: 0.7rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong style="color: #FF6B35; font-size: 1rem;">🏢 {office['사업소']}</strong><br>
-                        <span style="color: #8B95A5; font-size: 0.85rem;">📍 {office['관할구역']}</span>
-                    </div>
-                    <div style="text-align: right;">
-                        <span style="color: #FFB347; font-size: 1.1rem; font-weight: 600;">📞 {office['전화번호']}</span>
-                    </div>
+            <div class="contact-card">
+                <div>
+                    <div class="contact-name">{office['사업소']}</div>
+                    <div class="contact-area">{office['관할구역']}</div>
                 </div>
+                <div class="contact-phone">{office['전화번호']}</div>
             </div>
             """, unsafe_allow_html=True)
     else:
         st.info("해당 지역의 사업소를 찾을 수 없습니다.")
 
     st.markdown("""
-    <div class="notice-banner" style="margin-top: 1rem;">
+    <div class="info-bar" style="margin-top: 1rem;">
         💡 효율향상사업 관련 자세한 상담은 <strong>관할 지사 담당자</strong>에게 전화 문의해주세요.
     </div>
     """, unsafe_allow_html=True)
