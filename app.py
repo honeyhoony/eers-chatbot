@@ -8,7 +8,7 @@ from classes.admin import render_admin_panel
 
 # ========== 페이지 설정 ==========
 st.set_page_config(
-    page_title="대구본부 효율향상사업 챗봇",
+    page_title="KEPCO EERS 챗봇",
     page_icon="⚡",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -174,43 +174,79 @@ st.markdown("""
 # ========== 탭 구성 ==========
 tab_chat, tab_admin = st.tabs(["💬 챗봇", "⚙️ 관리자"])
 
+# ========== 예시 질문 목록 ==========
+EXAMPLE_QUESTIONS = [
+    "효율향상사업 참여 절차가 어떻게 되나요?",
+    "고효율 LED 지원 기준과 지원금이 궁금합니다",
+    "고효율 인버터 신청 서류는 무엇이 필요한가요?",
+    "소상공인 대상 특별지원 기준이 있나요?",
+    "고효율 냉동기 지원 공고 내용을 알려주세요",
+    "농어민 대상 효율향상사업 지원 기준은?",
+]
+
 # ========== 챗봇 탭 ==========
 with tab_chat:
     # 히어로 헤더
     st.markdown("""
     <div class="hero-container">
         <div class="hero-icon">⚡</div>
-        <h1 class="hero-title">KEPCO EERS 챗봇</h1>
-        <p class="hero-subtitle">에너지효율향상의무화제도 · 문서 기반 AI 상담</p>
+        <h1 class="hero-title">한국전력 대구본부<br>효율향상사업 도우미</h1>
+        <p class="hero-subtitle">설비효율향상사업 관련 궁금한 점을 물어보세요</p>
     </div>
     """, unsafe_allow_html=True)
 
     # 안내 배너
     st.markdown("""
     <div class="notice-banner">
-        📌 본 챗봇은 관리자가 등록한 <strong>KEPCO EERS 관련 문서에 기반하여</strong> 답변합니다.
-        등록된 문서에 없는 내용이나 EERS와 무관한 질문에는 답변이 제한됩니다.
+        📌 본 챗봇은 <strong>한국전력 효율향상사업 관련 문서에 기반하여</strong> 답변합니다.<br>
+        자세한 사항은 <strong>한전 관할지사 효율향상사업 담당자</strong>에게 문의해주세요.
     </div>
     """, unsafe_allow_html=True)
 
     # 채팅 히스토리 초기화
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "안녕하세요! ⚡ **KEPCO EERS 챗봇**입니다.\n\n"
-             "📌 **등록된 EERS 문서를 기반으로만 답변합니다.**\n\n"
-             "아래와 같은 질문을 해보세요:\n"
-             "- 🔌 EERS 사업 참여 절차가 어떻게 되나요?\n"
-             "- 💰 고효율 기기 설치 시 지원금은 얼마인가요?\n"
-             "- 📋 대구본부 공고 내용이 궁금합니다."}
-        ]
+        st.session_state.messages = []
+
+    # 예시 질문 선택 상태
+    if "selected_example" not in st.session_state:
+        st.session_state.selected_example = None
+
+    # 예시 질문 버튼 (대화가 없을 때만 표시)
+    if len(st.session_state.messages) == 0:
+        st.markdown("#### 💡 이런 것들을 물어보세요")
+        cols = st.columns(2)
+        for i, question in enumerate(EXAMPLE_QUESTIONS):
+            with cols[i % 2]:
+                if st.button(f"💬 {question}", key=f"example_{i}", use_container_width=True):
+                    st.session_state.selected_example = question
+                    st.rerun()
 
     # 이전 메시지 표시
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # 사용자 입력
-    if prompt := st.chat_input("💬 EERS에 대해 질문해주세요..."):
+    # 예시 질문 클릭 처리
+    if st.session_state.selected_example:
+        prompt = st.session_state.selected_example
+        st.session_state.selected_example = None
+
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("🔍 문서 검색 및 답변 생성 중..."):
+                try:
+                    response = ask(prompt)
+                except Exception as e:
+                    response = f"⚠️ 오류가 발생했습니다: {str(e)}\n\n관리자에게 문의하거나 문서가 업로드되어 있는지 확인해주세요."
+            st.markdown(response)
+
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+    # 직접 입력
+    if prompt := st.chat_input("💬 효율향상사업에 대해 질문해주세요..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
