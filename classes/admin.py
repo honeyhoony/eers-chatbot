@@ -93,17 +93,31 @@ def list_documents() -> list[str]:
 def delete_document(filename: str) -> bool:
     """문서를 Storage와 벡터DB에서 삭제합니다."""
     try:
-        # Storage에서 삭제
         supabase.storage.from_(BUCKET_NAME).remove([filename])
-
-        # 벡터DB에서 해당 문서의 청크 삭제
         supabase.table("documents").delete().filter(
             "metadata->>source", "eq", filename
         ).execute()
-
         return True
     except Exception as e:
         st.error(f"삭제 실패: {str(e)}")
+        return False
+
+
+def delete_all_documents() -> bool:
+    """모든 문서를 Storage와 벡터DB에서 삭제합니다."""
+    try:
+        # Storage의 모든 파일 삭제
+        files = supabase.storage.from_(BUCKET_NAME).list()
+        if files:
+            file_names = [f["name"] for f in files]
+            supabase.storage.from_(BUCKET_NAME).remove(file_names)
+
+        # 벡터DB의 모든 문서 삭제
+        supabase.table("documents").delete().neq("id", 0).execute()
+
+        return True
+    except Exception as e:
+        st.error(f"전체 삭제 실패: {str(e)}")
         return False
 
 
@@ -155,6 +169,31 @@ def render_admin_panel():
             if col2.button("🗑️", key=f"del_{doc}"):
                 if delete_document(doc):
                     st.success(f"'{doc}' 삭제 완료")
+                    st.rerun()
+
+        # -- 전체 삭제 --
+        st.markdown("---")
+        st.subheader("🗑️ 전체 삭제")
+        st.warning("⚠️ 등록된 모든 문서와 인덱싱 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.")
+        if "confirm_delete_all" not in st.session_state:
+            st.session_state.confirm_delete_all = False
+
+        if not st.session_state.confirm_delete_all:
+            if st.button("🗑️ 전체 삭제 요청", type="primary"):
+                st.session_state.confirm_delete_all = True
+                st.rerun()
+        else:
+            st.error("⚠️ 정말로 모든 문서를 삭제하시겠습니까?")
+            col_yes, col_no = st.columns(2)
+            with col_yes:
+                if st.button("✅ 네, 전체 삭제합니다", type="primary"):
+                    if delete_all_documents():
+                        st.success("🗑️ 모든 문서가 삭제되었습니다.")
+                        st.session_state.confirm_delete_all = False
+                        st.rerun()
+            with col_no:
+                if st.button("❌ 취소"):
+                    st.session_state.confirm_delete_all = False
                     st.rerun()
     else:
         st.info("아직 등록된 문서가 없습니다.")
