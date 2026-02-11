@@ -24,18 +24,28 @@ _hm._normalize_header_value = _safe_normalize
 from openai import OpenAI
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import streamlit as st
 
 load_dotenv(override=True)
 
+
+def get_secret(key: str) -> str:
+    """Streamlit secrets → 환경변수 순서로 읽기 (Cloud + 로컬 호환)"""
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key)
+
+
 # Clients
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=get_secret("OPENAI_API_KEY"))
 supabase: Client = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_KEY")
+    get_secret("SUPABASE_URL"),
+    get_secret("SUPABASE_SERVICE_KEY")
 )
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+SUPABASE_URL = get_secret("SUPABASE_URL")
+SUPABASE_KEY = get_secret("SUPABASE_SERVICE_KEY")
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 CHAT_MODEL = "gpt-4o-mini"

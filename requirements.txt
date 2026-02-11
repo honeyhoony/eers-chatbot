@@ -1,9 +1,6 @@
-streamlit==1.32.0
-openai==1.13.3
-langchain==0.1.11
-langchain-openai==0.0.8
-langchain-community==0.0.27
-supabase==2.4.0
-python-dotenv==1.0.1
-pypdf==4.1.0
-tiktoken==0.6.0
+streamlit
+openai
+supabase
+python-dotenv
+pdfplumber
+requests

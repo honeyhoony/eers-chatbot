@@ -3,17 +3,13 @@ admin.py - 관리자 문서 관리 (웹 업로드 + 벡터DB 조회/삭제)
 """
 import json
 import streamlit as st
-from classes.rag import supabase
+from classes.rag import supabase, get_secret
 from classes.text_utils import extract_text_from_pdf, chunk_text
 import requests as http_requests
-import os
-from dotenv import load_dotenv
 
-load_dotenv(override=True)
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+OPENAI_API_KEY = get_secret("OPENAI_API_KEY")
+SUPABASE_URL = get_secret("SUPABASE_URL")
+SUPABASE_KEY = get_secret("SUPABASE_SERVICE_KEY")
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 
