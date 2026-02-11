@@ -1,31 +1,23 @@
 """
-admin.py - 관리자 문서 관리 (Supabase Storage + Vector 인덱싱)
+admin.py - 관리자 문서 관리 (벡터DB 조회/삭제)
+PDF 업로드는 upload_docs.py 스크립트로 처리
 """
-import re
-import hashlib
-import traceback
 import streamlit as st
-from classes.text_utils import extract_text_from_pdf, chunk_text
-from classes.rag import supabase, store_chunks
+from classes.rag import supabase
+import requests as http_requests
+import os
+from dotenv import load_dotenv
 
+load_dotenv(override=True)
 
-BUCKET_NAME = "kepco-docs"
-
-
-def sanitize_filename(filename: str) -> str:
-    """한글/특수문자가 포함된 파일명을 안전한 형식으로 변환합니다."""
-    name, ext = filename.rsplit(".", 1) if "." in filename else (filename, "pdf")
-    file_hash = hashlib.md5(name.encode("utf-8")).hexdigest()[:12]
-    safe_part = re.sub(r"[^a-zA-Z0-9]", "", name)[:20]
-    if safe_part:
-        return f"{safe_part}_{file_hash}.{ext}"
-    return f"doc_{file_hash}.{ext}"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
 
 def check_admin_password() -> bool:
     """관리자 비밀번호를 확인합니다."""
     admin_pw = st.secrets.get("ADMIN_PASSWORD", "changeme123")
-    entered = st.text_input("🔑 관리자 비밀번호", type="password")
+    entered = st.text_input("관리자 비밀번호", type="password")
     if entered == admin_pw:
         return True
     elif entered:
@@ -33,71 +25,38 @@ def check_admin_password() -> bool:
     return False
 
 
-def upload_document(uploaded_file) -> bool:
-    """PDF 파일에서 텍스트를 추출하고 벡터 인덱싱합니다."""
-    original_name = uploaded_file.name
+def get_indexed_documents() -> list[dict]:
+    """벡터DB에 인덱싱된 문서 목록과 청크 수를 조회합니다."""
     try:
-        file_bytes = uploaded_file.read()
-    except Exception as e:
-        st.error(f"파일 읽기 실패: {original_name}")
-        return False
-
-    # 1. Storage 업로드 (실패해도 계속 진행)
-    safe_name = sanitize_filename(original_name)
-    try:
-        supabase.storage.from_(BUCKET_NAME).upload(
-            file=file_bytes,
-            path=safe_name,
-            file_options={"content-type": "application/pdf", "x-upsert": "true"}
+        resp = http_requests.get(
+            f"{SUPABASE_URL}/rest/v1/documents?select=metadata",
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+            },
+            timeout=15
         )
-    except Exception:
-        pass  # Storage는 무시하고 인덱싱만 진행
+        resp.raise_for_status()
+        data = resp.json()
 
-    # 2. PDF 텍스트 추출
-    try:
-        text = extract_text_from_pdf(file_bytes)
-        if not text:
-            st.error(f"텍스트 추출 실패: {original_name}")
-            return False
-    except Exception as e:
-        st.error(f"텍스트 추출 오류 ({original_name}): {str(e)[:100]}")
-        return False
+        # 파일별 청크 수 계산
+        doc_counts = {}
+        for row in data:
+            meta = row.get("metadata", {})
+            if isinstance(meta, dict):
+                source = meta.get("source", "알 수 없음")
+                doc_counts[source] = doc_counts.get(source, 0) + 1
 
-    # 3. 청킹
-    try:
-        chunks = chunk_text(text)
-    except Exception as e:
-        st.error(f"청킹 오류 ({original_name}): {str(e)[:100]}")
-        return False
-
-    # 4. 임베딩 & 벡터DB 저장
-    try:
-        store_chunks(chunks, original_name)
-    except Exception as e:
-        tb = traceback.format_exc()
-        st.error(f"인덱싱 오류 ({original_name}): {str(e)[:150]}")
-        st.code(tb[-500:], language="text")
-        return False
-
-    st.success(f"✅ {original_name} — {len(chunks)}개 청크 인덱싱 완료")
-    return True
-
-
-def list_documents() -> list[str]:
-    """Storage에 업로드된 문서 목록을 가져옵니다."""
-    try:
-        files = supabase.storage.from_(BUCKET_NAME).list()
-        return [f["name"] for f in files if f["name"].endswith(".pdf")]
+        return [{"name": name, "chunks": count} for name, count in sorted(doc_counts.items())]
     except Exception:
         return []
 
 
-def delete_document(filename: str) -> bool:
-    """문서를 Storage와 벡터DB에서 삭제합니다."""
+def delete_document_by_source(source_name: str) -> bool:
+    """특정 문서를 벡터DB에서 삭제합니다."""
     try:
-        supabase.storage.from_(BUCKET_NAME).remove([filename])
         supabase.table("documents").delete().filter(
-            "metadata->>source", "eq", filename
+            "metadata->>source", "eq", source_name
         ).execute()
         return True
     except Exception as e:
@@ -106,17 +65,9 @@ def delete_document(filename: str) -> bool:
 
 
 def delete_all_documents() -> bool:
-    """모든 문서를 Storage와 벡터DB에서 삭제합니다."""
+    """모든 문서를 벡터DB에서 삭제합니다."""
     try:
-        # Storage의 모든 파일 삭제
-        files = supabase.storage.from_(BUCKET_NAME).list()
-        if files:
-            file_names = [f["name"] for f in files]
-            supabase.storage.from_(BUCKET_NAME).remove(file_names)
-
-        # 벡터DB의 모든 문서 삭제
         supabase.table("documents").delete().neq("id", 0).execute()
-
         return True
     except Exception as e:
         st.error(f"전체 삭제 실패: {str(e)}")
@@ -125,81 +76,61 @@ def delete_all_documents() -> bool:
 
 def render_admin_panel():
     """관리자 패널 UI를 렌더링합니다."""
-    st.header("⚙️ 관리자 설정")
+    st.header("관리자 설정")
 
     if not check_admin_password():
         st.info("관리자 비밀번호를 입력해주세요.")
         return
 
-    st.success("✅ 관리자 인증 완료")
+    st.success("관리자 인증 완료")
 
-    # -- 문서 업로드 (일괄 지원) --
-    st.subheader("📁 문서 업로드")
-    uploaded_files = st.file_uploader(
-        "KEPCO EERS 관련 PDF 파일을 업로드하세요 (여러 파일 선택 가능)",
-        type=["pdf"],
-        accept_multiple_files=True,
-        help="절차서, 기기별 공고문, 대구본부 공고문 등 — Ctrl/Shift 클릭으로 다중 선택"
-    )
-    if uploaded_files:
-        st.info(f"{len(uploaded_files)}개 파일 선택됨")
-        if st.button(f"{len(uploaded_files)}개 파일 일괄 업로드 시작"):
-            progress_bar = st.progress(0, text="준비 중...")
-            success_count = 0
-            fail_count = 0
-            for i, file in enumerate(uploaded_files):
-                progress_bar.progress(
-                    (i) / len(uploaded_files),
-                    text=f"({i+1}/{len(uploaded_files)}) processing..."
-                )
-                if upload_document(file):
-                    success_count += 1
-                else:
-                    fail_count += 1
-            progress_bar.progress(1.0, text="done")
-            if fail_count == 0:
-                st.balloons()
-                st.success(f"전체 {success_count}개 파일 인덱싱 완료!")
-            else:
-                st.warning(f"완료 — 성공: {success_count}개 / 실패: {fail_count}개")
+    # -- 인덱싱된 문서 목록 --
+    st.subheader("인덱싱된 문서 목록")
 
-    # -- 등록된 문서 목록 --
-    st.subheader("📋 등록된 문서 목록")
-    docs = list_documents()
+    docs = get_indexed_documents()
     if docs:
-        st.caption(f"총 {len(docs)}개 문서 등록됨")
+        total_chunks = sum(d["chunks"] for d in docs)
+        st.caption(f"총 {len(docs)}개 문서 / {total_chunks}개 청크")
+
         for doc in docs:
-            col1, col2 = st.columns([4, 1])
-            col1.write(f"📄 {doc}")
-            if col2.button("🗑️", key=f"del_{doc}"):
-                if delete_document(doc):
-                    st.success(f"'{doc}' 삭제 완료")
+            col1, col2, col3 = st.columns([5, 1, 1])
+            col1.write(f"{doc['name']}")
+            col2.caption(f"{doc['chunks']}청크")
+            if col3.button("삭제", key=f"del_{doc['name']}"):
+                if delete_document_by_source(doc['name']):
+                    st.success(f"'{doc['name']}' 삭제 완료")
                     st.rerun()
 
         # -- 전체 삭제 --
         st.markdown("---")
-        st.subheader("🗑️ 전체 삭제")
-        st.warning("⚠️ 등록된 모든 문서와 인덱싱 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.")
+        st.subheader("전체 삭제")
+        st.warning("등록된 모든 문서와 인덱싱 데이터가 삭제됩니다. 되돌릴 수 없습니다.")
         if "confirm_delete_all" not in st.session_state:
             st.session_state.confirm_delete_all = False
 
         if not st.session_state.confirm_delete_all:
-            if st.button("🗑️ 전체 삭제 요청", type="primary"):
+            if st.button("전체 삭제 요청", type="primary"):
                 st.session_state.confirm_delete_all = True
                 st.rerun()
         else:
-            st.error("⚠️ 정말로 모든 문서를 삭제하시겠습니까?")
+            st.error("정말로 모든 문서를 삭제하시겠습니까?")
             col_yes, col_no = st.columns(2)
             with col_yes:
-                if st.button("✅ 네, 전체 삭제합니다", type="primary"):
+                if st.button("네, 전체 삭제합니다", type="primary"):
                     if delete_all_documents():
-                        st.success("🗑️ 모든 문서가 삭제되었습니다.")
+                        st.success("모든 문서가 삭제되었습니다.")
                         st.session_state.confirm_delete_all = False
                         st.rerun()
             with col_no:
-                if st.button("❌ 취소"):
+                if st.button("취소"):
                     st.session_state.confirm_delete_all = False
                     st.rerun()
     else:
-        st.info("아직 등록된 문서가 없습니다.")
+        st.info("인덱싱된 문서가 없습니다. upload_docs.py 스크립트로 PDF를 업로드하세요.")
 
+    # -- 업로드 안내 --
+    st.markdown("---")
+    st.subheader("문서 업로드 방법")
+    st.code("""# 1. docs/ 폴더에 PDF 파일을 넣고
+# 2. 터미널에서 실행:
+python upload_docs.py""", language="bash")
