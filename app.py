@@ -317,7 +317,13 @@ with tab_chat:
     if "selected_example" not in st.session_state:
         st.session_state.selected_example = None
 
-    # 예시 질문 (대화 없을 때)
+    # 예시 질문 처리 (버튼 표시 전에 먼저 처리해야 바로 사라짐)
+    if st.session_state.selected_example:
+        prompt = st.session_state.selected_example
+        st.session_state.selected_example = None
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+    # 예시 질문 (대화 없을 때만 표시)
     if len(st.session_state.messages) == 0:
         st.markdown("##### 💡 자주 묻는 질문")
         cols = st.columns(2)
@@ -332,17 +338,12 @@ with tab_chat:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # 예시 질문 처리
-    if st.session_state.selected_example:
-        prompt = st.session_state.selected_example
-        st.session_state.selected_example = None
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    # 마지막 메시지가 user이고 assistant 응답이 없으면 답변 생성
+    if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
         with st.chat_message("assistant"):
             with st.spinner("답변 생성 중..."):
                 try:
-                    response = ask(prompt)
+                    response = ask(st.session_state.messages[-1]["content"])
                 except Exception as e:
                     response = f"오류가 발생했습니다: {str(e)}"
             st.markdown(response)
