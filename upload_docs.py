@@ -9,7 +9,7 @@ import json
 import time
 import traceback
 import requests
-from pypdf import PdfReader
+import pdfplumber
 from dotenv import load_dotenv
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -23,12 +23,19 @@ DOCS_FOLDER = "docs"
 
 
 def extract_text_from_pdf(filepath: str) -> str:
-    reader = PdfReader(filepath)
     text = ""
-    for page in reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text + "\n"
+    with pdfplumber.open(filepath) as pdf:
+        for page in pdf.pages:
+            tables = page.extract_tables()
+            if tables:
+                for table in tables:
+                    for row in table:
+                        cells = [str(cell).strip() if cell else "" for cell in row]
+                        text += " | ".join(cells) + "\n"
+                    text += "\n"
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
     return text.strip()
 
 

@@ -343,7 +343,7 @@ with tab_chat:
         with st.chat_message("assistant"):
             with st.spinner("답변 생성 중..."):
                 try:
-                    response = ask(st.session_state.messages[-1]["content"])
+                    response = ask(st.session_state.messages[-1]["content"], st.session_state.messages)
                 except Exception as e:
                     response = f"오류가 발생했습니다: {str(e)}"
             st.markdown(response)
@@ -357,7 +357,7 @@ with tab_chat:
         with st.chat_message("assistant"):
             with st.spinner("답변 생성 중..."):
                 try:
-                    response = ask(prompt)
+                    response = ask(prompt, st.session_state.messages)
                 except Exception as e:
                     response = f"오류가 발생했습니다: {str(e)}"
             st.markdown(response)

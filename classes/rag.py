@@ -143,9 +143,22 @@ def generate_answer(query: str, context_docs: list[dict]) -> str:
 SIMILARITY_THRESHOLD = 0.3
 
 
-def ask(query: str) -> str:
-    """전체 RAG 파이프라인: 검색 → 유사도 필터 → 답변 생성"""
-    docs = search_similar(query)
+def ask(query: str, chat_history: list[dict] = None) -> str:
+    """전체 RAG 파이프라인: 검색 → 유사도 필터 → 답변 생성
+    chat_history: 이전 대화 목록 [{"role": "user", "content": "..."}, ...]
+    """
+    # 대화 맥락을 포함한 검색 쿼리 생성
+    search_query = query
+    if chat_history and len(chat_history) >= 2:
+        # 최근 대화 2턴(user+assistant)을 검색 쿼리에 포함
+        recent = chat_history[-4:]  # 최대 2턴
+        context_parts = []
+        for msg in recent:
+            if msg["role"] == "user":
+                context_parts.append(msg["content"])
+        search_query = " ".join(context_parts[-2:]) + " " + query
+
+    docs = search_similar(search_query)
 
     if not docs:
         return ("등록된 문서에서 관련 내용을 찾을 수 없습니다.\n\n"

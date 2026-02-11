@@ -1,18 +1,31 @@
 """
 text_utils.py - PDF 파일 텍스트 추출 및 청킹 유틸리티
+pdfplumber를 사용하여 표(table) 데이터도 정확하게 추출
 """
 import io
-from pypdf import PdfReader
+import pdfplumber
 
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
-    """PDF 바이트로부터 텍스트를 추출합니다."""
-    reader = PdfReader(io.BytesIO(file_bytes))
+    """PDF 바이트로부터 텍스트를 추출합니다. 표 데이터도 포함."""
     text = ""
-    for page in reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text + "\n"
+    with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+        for page in pdf.pages:
+            # 먼저 표(table) 추출 시도
+            tables = page.extract_tables()
+            if tables:
+                for table in tables:
+                    for row in table:
+                        # None 값을 빈 문자열로 변환
+                        cells = [str(cell).strip() if cell else "" for cell in row]
+                        text += " | ".join(cells) + "\n"
+                    text += "\n"
+
+            # 일반 텍스트도 추출
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+
     return text.strip()
 
 
@@ -32,7 +45,6 @@ def chunk_text(text: str, chunk_size: int = 800, chunk_overlap: int = 150) -> li
 
         # 문장 끝에서 자르기 시도 (마지막 청크 제외)
         if end < len(text):
-            # 마지막 마침표, 물음표, 느낌표 또는 줄바꿈 위치 찾기
             for sep in ["\n\n", "\n", ". ", "? ", "! "]:
                 last_sep = text[start:end].rfind(sep)
                 if last_sep != -1 and last_sep > chunk_size * 0.5:
