@@ -4,6 +4,21 @@ rag.py - Supabase pgvector 기반 RAG(Retrieval Augmented Generation) 파이프�
 import os
 import json
 import requests as http_requests
+
+# ====== httpx ASCII 인코딩 버그 패치 ======
+# httpx가 헤더 값을 ASCII로 인코딩하려 해서 한글이 포함되면 에러 발생
+# OpenAI, Supabase 클라이언트 모두 httpx를 사용하므로 root에서 패치
+import httpx._models as _hm
+_orig_normalize = _hm._normalize_header_value
+def _utf8_normalize(value, encoding=None):
+    if isinstance(value, bytes):
+        return value
+    if not isinstance(value, str):
+        raise TypeError(f"Header value must be str or bytes, not {type(value)}")
+    return value.encode(encoding or "utf-8")
+_hm._normalize_header_value = _utf8_normalize
+# ====== 패치 끝 ======
+
 from openai import OpenAI
 from supabase import create_client, Client
 from dotenv import load_dotenv
