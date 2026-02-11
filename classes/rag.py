@@ -2,6 +2,8 @@
 rag.py - Supabase pgvector 기반 RAG(Retrieval Augmented Generation) 파이프라인
 """
 import os
+import json
+import requests as http_requests
 from openai import OpenAI
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -14,6 +16,9 @@ supabase: Client = create_client(
     os.getenv("SUPABASE_URL"),
     os.getenv("SUPABASE_SERVICE_KEY")
 )
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 CHAT_MODEL = "gpt-4o-mini"
@@ -29,17 +34,31 @@ def get_embedding(text: str) -> list[float]:
 
 
 def store_chunks(chunks: list[str], source_filename: str):
-    """텍스트 청크들을 임베딩하여 Supabase에 저장합니다."""
+    """텍스트 청크들을 임베딩하여 Supabase에 저장합니다.
+    httpx ASCII 인코딩 버그를 우회하기 위해 requests 라이브러리로 직접 호출합니다."""
+    url = f"{SUPABASE_URL}/rest/v1/documents"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+    }
     for i, chunk in enumerate(chunks):
         embedding = get_embedding(chunk)
-        supabase.table("documents").insert({
+        data = {
             "content": chunk,
             "metadata": {
                 "source": source_filename,
                 "chunk_index": i
             },
             "embedding": embedding
-        }).execute()
+        }
+        resp = http_requests.post(
+            url,
+            headers=headers,
+            data=json.dumps(data, ensure_ascii=False).encode("utf-8")
+        )
+        resp.raise_for_status()
 
 
 def search_similar(query: str, match_count: int = 5) -> list[dict]:
