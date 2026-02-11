@@ -78,6 +78,13 @@ def upload_document(uploaded_file) -> bool:
         st.error(f"파일 읽기 실패: {original_name}")
         return False
 
+    # 0. 중복 체크
+    existing_docs = get_indexed_documents()
+    existing_names = {d["name"] for d in existing_docs}
+    if original_name in existing_names:
+        st.warning(f"'{original_name}' — 이미 등록된 문서입니다 (건너뜀)")
+        return True  # 성공으로 처리
+
     # 1. 텍스트 추출
     try:
         text = extract_text_from_pdf(file_bytes)
