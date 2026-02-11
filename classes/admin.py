@@ -3,6 +3,7 @@ admin.py - 관리자 문서 관리 (Supabase Storage + Vector 인덱싱)
 """
 import re
 import hashlib
+import traceback
 import streamlit as st
 from classes.text_utils import extract_text_from_pdf, chunk_text
 from classes.rag import supabase, store_chunks
@@ -12,18 +13,13 @@ BUCKET_NAME = "kepco-docs"
 
 
 def sanitize_filename(filename: str) -> str:
-    """한글/특수문자가 포함된 파일명을 Supabase Storage에 안전한 형식으로 변환합니다.
-    원본 파일명의 해시를 사용하여 고유성을 보장합니다."""
+    """한글/특수문자가 포함된 파일명을 안전한 형식으로 변환합니다."""
     name, ext = filename.rsplit(".", 1) if "." in filename else (filename, "pdf")
-    # 원본 파일명의 해시로 고유 ID 생성
     file_hash = hashlib.md5(name.encode("utf-8")).hexdigest()[:12]
-    # 영문/숫자만 추출 (있으면 prefix로 사용)
     safe_part = re.sub(r"[^a-zA-Z0-9]", "", name)[:20]
     if safe_part:
-        safe_name = f"{safe_part}_{file_hash}.{ext}"
-    else:
-        safe_name = f"doc_{file_hash}.{ext}"
-    return safe_name
+        return f"{safe_part}_{file_hash}.{ext}"
+    return f"doc_{file_hash}.{ext}"
 
 
 def check_admin_password() -> bool:
@@ -38,47 +34,53 @@ def check_admin_password() -> bool:
 
 
 def upload_document(uploaded_file) -> bool:
-    """PDF 파일을 Supabase Storage에 업로드하고 벡터 인덱싱합니다."""
+    """PDF 파일에서 텍스트를 추출하고 벡터 인덱싱합니다."""
+    original_name = uploaded_file.name
     try:
         file_bytes = uploaded_file.read()
-        original_name = uploaded_file.name
-        safe_name = sanitize_filename(original_name)
-
-        # 1. Supabase Storage에 업로드 (안전한 파일명 사용)
-        storage_ok = False
-        with st.spinner(f"📤 파일 업로드 중..."):
-            try:
-                supabase.storage.from_(BUCKET_NAME).upload(
-                    file=file_bytes,
-                    path=safe_name,
-                    file_options={
-                        "content-type": "application/pdf",
-                        "x-upsert": "true"
-                    }
-                )
-                storage_ok = True
-            except Exception as storage_err:
-                st.warning(f"⚠️ Storage 저장 건너뜀 (인덱싱은 계속 진행): {str(storage_err)[:80]}")
-                storage_ok = False
-
-        # 2. PDF 텍스트 추출
-        with st.spinner("📄 텍스트 추출 중..."):
-            text = extract_text_from_pdf(file_bytes)
-            if not text:
-                st.error(f"PDF에서 텍스트를 추출할 수 없습니다: {original_name}")
-                return False
-
-        # 3. 청킹 & 임베딩 저장 (원본 파일명을 metadata에 보존)
-        with st.spinner("🧠 AI 인덱싱 중... (시간이 걸릴 수 있습니다)"):
-            chunks = chunk_text(text)
-            store_chunks(chunks, original_name)
-
-        st.success(f"✅ '{original_name}' 업로드 완료! ({len(chunks)}개 청크 인덱싱)")
-        return True
-
     except Exception as e:
-        st.error(f"❌ '{uploaded_file.name}' 업로드 실패: {str(e)}")
+        st.error(f"파일 읽기 실패: {original_name}")
         return False
+
+    # 1. Storage 업로드 (실패해도 계속 진행)
+    safe_name = sanitize_filename(original_name)
+    try:
+        supabase.storage.from_(BUCKET_NAME).upload(
+            file=file_bytes,
+            path=safe_name,
+            file_options={"content-type": "application/pdf", "x-upsert": "true"}
+        )
+    except Exception:
+        pass  # Storage는 무시하고 인덱싱만 진행
+
+    # 2. PDF 텍스트 추출
+    try:
+        text = extract_text_from_pdf(file_bytes)
+        if not text:
+            st.error(f"텍스트 추출 실패: {original_name}")
+            return False
+    except Exception as e:
+        st.error(f"텍스트 추출 오류 ({original_name}): {str(e)[:100]}")
+        return False
+
+    # 3. 청킹
+    try:
+        chunks = chunk_text(text)
+    except Exception as e:
+        st.error(f"청킹 오류 ({original_name}): {str(e)[:100]}")
+        return False
+
+    # 4. 임베딩 & 벡터DB 저장
+    try:
+        store_chunks(chunks, original_name)
+    except Exception as e:
+        tb = traceback.format_exc()
+        st.error(f"인덱싱 오류 ({original_name}): {str(e)[:150]}")
+        st.code(tb[-500:], language="text")
+        return False
+
+    st.success(f"✅ {original_name} — {len(chunks)}개 청크 인덱싱 완료")
+    return True
 
 
 def list_documents() -> list[str]:
