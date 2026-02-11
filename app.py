@@ -14,190 +14,253 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ========== 미니멀 CSS (흑백 + 블루 포인트) ==========
-st.markdown("""
+# ========== 테마 상태 ==========
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+
+# ========== CSS 변수 기반 테마 ==========
+dark = st.session_state.dark_mode
+
+# 테마별 색상 정의
+if dark:
+    bg = "#0a0a0a"
+    card_bg = "#111"
+    border = "#222"
+    text_primary = "#f0f0f0"
+    text_secondary = "#888"
+    text_muted = "#555"
+    tab_bg = "#111"
+    tab_active_bg = "#1a1a1a"
+    btn_bg = "#111"
+    btn_text = "#ccc"
+    btn_hover_bg = "#0f1a2e"
+    input_bg = "#111"
+    accent = "#3b82f6"
+    card_hover = "#333"
+    info_strong = "#ccc"
+else:
+    bg = "#ffffff"
+    card_bg = "#f8f9fa"
+    border = "#e2e5e9"
+    text_primary = "#1a1a1a"
+    text_secondary = "#555"
+    text_muted = "#999"
+    tab_bg = "#f0f2f5"
+    tab_active_bg = "#fff"
+    btn_bg = "#fff"
+    btn_text = "#333"
+    btn_hover_bg = "#eef2ff"
+    input_bg = "#fff"
+    accent = "#3b82f6"
+    card_hover = "#d0d5dd"
+    info_strong = "#333"
+
+st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
 
-    /* 전역 폰트 - 아이콘 제외 */
-    html, body, [class*="css"] {
+    html, body, [class*="css"] {{
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif !important;
-    }
+    }}
 
-    /* 배경 */
-    .stApp {
-        background: #0a0a0a;
-    }
+    .stApp {{
+        background: {bg};
+    }}
 
-    /* 숨김 */
-    footer, #MainMenu, header { visibility: hidden; }
+    footer, #MainMenu, header {{ visibility: hidden; }}
 
     /* ===== 헤더 ===== */
-    .header-box {
-        border: 1px solid #222;
+    .header-box {{
+        border: 1px solid {border};
         border-radius: 16px;
         padding: 2rem 1.5rem;
         text-align: center;
         margin-bottom: 1.2rem;
-        background: #111;
-    }
-    .header-box h1 {
+        background: {card_bg};
+    }}
+    .header-box h1 {{
         font-size: 1.5rem;
         font-weight: 700;
-        color: #fff;
+        color: {text_primary};
         margin: 0 0 0.3rem 0;
         letter-spacing: -0.02em;
-    }
-    .header-box p {
-        color: #666;
+    }}
+    .header-box p {{
+        color: {text_secondary};
         font-size: 0.85rem;
         margin: 0;
-    }
+    }}
 
     /* ===== 안내 배너 ===== */
-    .info-bar {
-        background: #111;
-        border: 1px solid #222;
-        border-left: 3px solid #3b82f6;
+    .info-bar {{
+        background: {card_bg};
+        border: 1px solid {border};
+        border-left: 3px solid {accent};
         border-radius: 0 10px 10px 0;
         padding: 0.7rem 1rem;
         margin-bottom: 1rem;
         font-size: 0.82rem;
-        color: #888;
-    }
-    .info-bar strong { color: #ccc; }
+        color: {text_secondary};
+    }}
+    .info-bar strong {{ color: {info_strong}; }}
 
     /* ===== 채팅 메시지 ===== */
-    .stChatMessage {
-        background: #111 !important;
-        border: 1px solid #1a1a1a !important;
+    .stChatMessage {{
+        background: {card_bg} !important;
+        border: 1px solid {border} !important;
         border-radius: 12px !important;
         padding: 1rem !important;
         margin-bottom: 0.5rem !important;
-    }
+    }}
 
-    /* 아바타 숨기고 심플하게 */
+    /* 아바타 숨김 */
     [data-testid="stChatMessageAvatarCustom"],
     [data-testid="chatAvatarIcon-user"],
-    [data-testid="chatAvatarIcon-assistant"] {
+    [data-testid="chatAvatarIcon-assistant"] {{
         display: none !important;
-    }
+    }}
 
     /* ===== 채팅 입력 ===== */
-    .stChatInput > div {
+    .stChatInput > div {{
         border-radius: 12px !important;
-        border: 1px solid #222 !important;
-        background: #111 !important;
-    }
-    .stChatInput > div:focus-within {
-        border-color: #3b82f6 !important;
-        box-shadow: 0 0 0 1px #3b82f6 !important;
-    }
+        border: 1px solid {border} !important;
+        background: {input_bg} !important;
+    }}
+    .stChatInput > div:focus-within {{
+        border-color: {accent} !important;
+        box-shadow: 0 0 0 1px {accent} !important;
+    }}
 
     /* ===== 탭 ===== */
-    .stTabs [data-baseweb="tab-list"] {
+    .stTabs [data-baseweb="tab-list"] {{
         gap: 0;
-        background: #111;
-        border: 1px solid #222;
+        background: {tab_bg};
+        border: 1px solid {border};
         border-radius: 10px;
         padding: 3px;
-    }
-    .stTabs [data-baseweb="tab"] {
+    }}
+    .stTabs [data-baseweb="tab"] {{
         border-radius: 8px;
         padding: 8px 20px;
         font-weight: 500;
-        color: #666 !important;
-    }
-    .stTabs [aria-selected="true"] {
-        background: #1a1a1a !important;
-        color: #fff !important;
-    }
+        color: {text_muted} !important;
+    }}
+    .stTabs [aria-selected="true"] {{
+        background: {tab_active_bg} !important;
+        color: {text_primary} !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }}
 
     /* ===== 버튼 ===== */
-    .stButton > button {
+    .stButton > button {{
         border-radius: 8px;
         font-weight: 500;
-        border: 1px solid #222;
-        background: #111;
-        color: #ccc;
+        border: 1px solid {border};
+        background: {btn_bg};
+        color: {btn_text};
         transition: all 0.15s ease;
-    }
-    .stButton > button:hover {
-        border-color: #3b82f6;
-        color: #fff;
-        background: #0f1a2e;
-    }
-    /* Primary 버튼 */
+    }}
+    .stButton > button:hover {{
+        border-color: {accent};
+        color: {text_primary};
+        background: {btn_hover_bg};
+    }}
     .stButton > button[kind="primary"],
-    .stButton > button[data-testid="stBaseButton-primary"] {
-        background: #3b82f6 !important;
+    .stButton > button[data-testid="stBaseButton-primary"] {{
+        background: {accent} !important;
         color: #fff !important;
-        border-color: #3b82f6 !important;
-    }
+        border-color: {accent} !important;
+    }}
     .stButton > button[kind="primary"]:hover,
-    .stButton > button[data-testid="stBaseButton-primary"]:hover {
+    .stButton > button[data-testid="stBaseButton-primary"]:hover {{
         background: #2563eb !important;
-    }
+    }}
 
     /* ===== 파일 업로더 ===== */
-    .stFileUploader > div {
+    .stFileUploader > div {{
         border-radius: 12px !important;
-        border: 1px dashed #333 !important;
-        background: #111 !important;
-    }
+        border: 1px dashed {border} !important;
+        background: {card_bg} !important;
+    }}
 
     /* ===== 프로그레스 바 ===== */
-    .stProgress > div > div {
-        background: #3b82f6 !important;
-    }
+    .stProgress > div > div {{
+        background: {accent} !important;
+    }}
 
     /* ===== 스피너 ===== */
-    .stSpinner > div > div {
-        border-top-color: #3b82f6 !important;
-    }
+    .stSpinner > div > div {{
+        border-top-color: {accent} !important;
+    }}
 
     /* ===== 연락처 카드 ===== */
-    .contact-card {
-        background: #111;
-        border: 1px solid #1a1a1a;
+    .contact-card {{
+        background: {card_bg};
+        border: 1px solid {border};
         border-radius: 10px;
         padding: 0.9rem 1.1rem;
         margin-bottom: 0.5rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-    }
-    .contact-card:hover {
-        border-color: #333;
-    }
-    .contact-name {
+    }}
+    .contact-card:hover {{
+        border-color: {card_hover};
+    }}
+    .contact-name {{
         font-weight: 600;
-        color: #e5e5e5;
+        color: {text_primary};
         font-size: 0.92rem;
-    }
-    .contact-area {
-        color: #555;
+    }}
+    .contact-area {{
+        color: {text_muted};
         font-size: 0.8rem;
         margin-top: 2px;
-    }
-    .contact-phone {
-        color: #3b82f6;
+    }}
+    .contact-phone {{
+        color: {accent};
         font-weight: 600;
         font-size: 0.95rem;
         white-space: nowrap;
-    }
+    }}
 
     /* ===== 텍스트 입력 ===== */
-    .stTextInput > div > div {
+    .stTextInput > div > div {{
         border-radius: 8px !important;
-        border-color: #222 !important;
-        background: #111 !important;
-    }
-    .stTextInput > div > div:focus-within {
-        border-color: #3b82f6 !important;
-    }
+        border-color: {border} !important;
+        background: {input_bg} !important;
+    }}
+    .stTextInput > div > div:focus-within {{
+        border-color: {accent} !important;
+    }}
+
+    /* ===== 테마 토글 버튼 ===== */
+    .theme-toggle {{
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 999999;
+        background: {card_bg};
+        border: 1px solid {border};
+        border-radius: 20px;
+        padding: 6px 14px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        color: {text_secondary};
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }}
 </style>
 """, unsafe_allow_html=True)
+
+# ========== 테마 토글 ==========
+col_spacer, col_toggle = st.columns([5, 1])
+with col_toggle:
+    theme_label = "🌙" if not dark else "☀️"
+    if st.button(theme_label, key="theme_toggle", help="다크/라이트 모드 전환"):
+        st.session_state.dark_mode = not st.session_state.dark_mode
+        st.rerun()
 
 # ========== 관할지사 연락처 데이터 ==========
 BRANCH_OFFICES = [

@@ -41,9 +41,14 @@ CHAT_MODEL = "gpt-4o-mini"
 
 def get_embedding(text: str) -> list[float]:
     """텍스트를 임베딩 벡터로 변환합니다."""
+    # 한국어는 토큰이 많으므로 6000자로 제한 (약 8000토큰)
+    truncated = text[:6000] if len(text) > 6000 else text
+    # 빈 텍스트 방지
+    if not truncated.strip():
+        truncated = "empty"
     response = openai_client.embeddings.create(
         model=EMBEDDING_MODEL,
-        input=text
+        input=truncated
     )
     return response.data[0].embedding
 
