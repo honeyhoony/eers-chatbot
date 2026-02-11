@@ -7,16 +7,18 @@ import requests as http_requests
 
 # ====== httpx ASCII 인코딩 버그 패치 ======
 # httpx가 헤더 값을 ASCII로 인코딩하려 해서 한글이 포함되면 에러 발생
-# OpenAI, Supabase 클라이언트 모두 httpx를 사용하므로 root에서 패치
+# 비ASCII 문자를 안전하게 제거하여 헤더를 유효한 ASCII로 유지
 import httpx._models as _hm
 _orig_normalize = _hm._normalize_header_value
-def _utf8_normalize(value, encoding=None):
+def _safe_normalize(value, encoding=None):
     if isinstance(value, bytes):
         return value
     if not isinstance(value, str):
         raise TypeError(f"Header value must be str or bytes, not {type(value)}")
-    return value.encode(encoding or "utf-8")
-_hm._normalize_header_value = _utf8_normalize
+    # 비ASCII 문자를 제거하여 안전한 ASCII 헤더 유지
+    safe_value = value.encode("ascii", errors="ignore").decode("ascii")
+    return safe_value.encode("ascii")
+_hm._normalize_header_value = _safe_normalize
 # ====== 패치 끝 ======
 
 from openai import OpenAI
