@@ -77,6 +77,7 @@ st.markdown(f"""
         text-align: center;
         margin-bottom: 1.2rem;
         background: {card_bg};
+        position: relative;
     }}
     .header-box h1 {{
         font-size: 1.5rem;
@@ -176,6 +177,8 @@ st.markdown(f"""
         background: #2563eb !important;
     }}
 
+    /* ===== 기기 선택 버튼 Grid (Cleanup unused) ===== */
+    
     /* ===== 파일 업로더 ===== */
     .stFileUploader > div {{
         border-radius: 12px !important;
@@ -193,7 +196,7 @@ st.markdown(f"""
         border-top-color: {accent} !important;
     }}
 
-    /* ===== 연락처 카드 ===== */
+    /* ===== 연락처 카드 (Common) ===== */
     .contact-card {{
         background: {card_bg};
         border: 1px solid {border};
@@ -203,19 +206,23 @@ st.markdown(f"""
         display: flex;
         justify-content: space-between;
         align-items: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
     }}
     .contact-card:hover {{
-        border-color: {card_hover};
+        border-color: {accent};
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transform: translateY(-1px);
     }}
     .contact-name {{
         font-weight: 600;
         color: {text_primary};
-        font-size: 0.92rem;
+        font-size: 0.95rem;
     }}
     .contact-area {{
         color: {text_muted};
-        font-size: 0.8rem;
-        margin-top: 2px;
+        font-size: 0.82rem;
+        margin-top: 3px;
     }}
     .contact-phone {{
         color: {accent};
@@ -232,6 +239,7 @@ st.markdown(f"""
     }}
     .stTextInput > div > div:focus-within {{
         border-color: {accent} !important;
+        box-shadow: 0 0 0 1px {accent} !important;
     }}
 
     /* ===== 테마 토글 버튼 ===== */
@@ -262,6 +270,16 @@ with col_toggle:
         st.session_state.dark_mode = not st.session_state.dark_mode
         st.rerun()
 
+# ========== 사이드바 설정 ==========
+with st.sidebar:
+    st.header("⚙️ 설정")
+    st.markdown("---")
+    if st.button("🗑️ 대화 내용 지우기", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+    st.markdown("---")
+    st.caption("한국전력 대구본부\n에너지효율부")
+
 # ========== 관할지사 연락처 데이터 ==========
 BRANCH_OFFICES = [
     {"사업소": "대구본부 직할 (북구)", "전화번호": "053-350-2452", "관할구역": "대구 북구"},
@@ -282,15 +300,49 @@ BRANCH_OFFICES = [
     {"사업소": "영덕지사", "전화번호": "054-730-3254", "관할구역": "영덕군 전역"},
 ]
 
-# ========== 예시 질문 ==========
-EXAMPLE_QUESTIONS = [
-    "효율향상사업 참여 절차가 어떻게 되나요?",
-    "고효율 LED 지원 기준과 지원금이 궁금합니다",
-    "고효율 인버터 신청 서류는 무엇이 필요한가요?",
-    "소상공인 대상 특별지원 기준이 있나요?",
-    "특별지원 혜택 대상이 어떻게 되나요?",
-    "농어민 대상 효율향상사업 지원 기준은?",
+# ========== 초기 기기 선택 옵션 (아이콘 추가) ==========
+DEVICE_OPTIONS = [
+    "💡 고효율 LED", "⚡ 고효율 인버터", "🏭 사출성형기", "⚙️ 프리미엄 전동기",
+    "❄️ 고효율 냉동기", "🌿 시설원예 히트펌프", "💧 고효율 펌프", "💨 공기압축기"
 ]
+
+@st.dialog("담당자 연락처 찾기", width="small")
+def contact_popup():
+    st.markdown("### 🏢 관할 사업소를 선택해주세요")
+    st.caption("지역명이나 사업소명으로 검색할 수 있습니다.")
+    
+    # 팝업 내 검색 기능 추가
+    search_query = st.text_input("지역 검색", placeholder="예: 경산, 북구, 포항...", key="popup_search")
+    
+    filtered_offices = BRANCH_OFFICES
+    if search_query:
+        filtered_offices = [
+            b for b in BRANCH_OFFICES 
+            if search_query in b["사업소"] or search_query in b["관할구역"]
+        ]
+    
+    if not filtered_offices:
+        st.warning("일치하는 사업소가 없습니다.")
+    
+    col1, col2 = st.columns(2)
+    selected_office = None
+    
+    # 버튼 그리드로 사업소 선택
+    for i, office in enumerate(filtered_offices):
+        # 짝수/홀수로 컬럼 분배
+        with col1 if i % 2 == 0 else col2:
+            if st.button(office["사업소"], key=f"popup_office_{i}", use_container_width=True):
+                selected_office = office
+                
+    if selected_office:
+        st.markdown("---")
+        st.success(f"**📌 {selected_office['사업소']}**")
+        st.markdown(f"**📞 전화번호:** `{selected_office['전화번호']}`")
+        st.markdown(f"**📍 관할구역:** {selected_office['관할구역']}")
+        
+        if st.button("닫기", type="primary", use_container_width=True):
+            st.session_state.show_contact_popup = False
+            st.rerun()
 
 # ========== 탭 구성 ==========
 tab_chat, tab_contacts, tab_admin = st.tabs(["💬 상담", "📞 연락처", "⚙️ 관리"])
@@ -304,34 +356,43 @@ with tab_chat:
     </div>
     """, unsafe_allow_html=True)
 
+    # 세션 초기화
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    if "show_contact_popup" not in st.session_state:
+        st.session_state.show_contact_popup = False
+
+    # 팝업 트리거 확인
+    if st.session_state.show_contact_popup:
+        contact_popup()
+
+    # 기기 선택 섹션 (대화 시작 전 상시 노출, 혹은 대화가 없을 때만 노출)
+    # 사용자가 "Device Selection First"라고 했으므로 상단에 배치
+    st.markdown("##### 🏗️ 어떤 설비에 관심이 있으신가요?")
+    
+    # 기기 선택 버튼들 (Pills 스타일 대신 버튼 그리드 사용)
+    cols = st.columns(4)
+    for i, device in enumerate(DEVICE_OPTIONS):
+        with cols[i % 4]:
+            if st.button(device, key=f"device_{i}", use_container_width=True):
+                # 기기 선택 시 자동으로 질문 생성
+                prompt = f"{device} 지원 기준과 절차가 궁금합니다."
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                st.rerun()
+
+    st.markdown("---")
+
+    # 담당자 연락처 버튼 (항시 노출)
+    if st.button("📞 담당자 연락처 찾기 (팝업)", type="primary", use_container_width=True):
+        st.session_state.show_contact_popup = True
+        st.rerun()
+
     st.markdown("""
     <div class="info-bar">
         📌 본 챗봇은 <strong>효율향상사업 관련 문서에 기반하여</strong> 답변합니다.
         자세한 사항은 <strong>관할지사 담당자</strong>에게 문의해주세요.
     </div>
     """, unsafe_allow_html=True)
-
-    # 세션 초기화
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    if "selected_example" not in st.session_state:
-        st.session_state.selected_example = None
-
-    # 예시 질문 처리 (버튼 표시 전에 먼저 처리해야 바로 사라짐)
-    if st.session_state.selected_example:
-        prompt = st.session_state.selected_example
-        st.session_state.selected_example = None
-        st.session_state.messages.append({"role": "user", "content": prompt})
-
-    # 예시 질문 (대화 없을 때만 표시)
-    if len(st.session_state.messages) == 0:
-        st.markdown("##### 💡 자주 묻는 질문")
-        cols = st.columns(2)
-        for i, q in enumerate(EXAMPLE_QUESTIONS):
-            with cols[i % 2]:
-                if st.button(q, key=f"ex_{i}", use_container_width=True):
-                    st.session_state.selected_example = q
-                    st.rerun()
 
     # 메시지 표시
     for msg in st.session_state.messages:
@@ -340,28 +401,29 @@ with tab_chat:
 
     # 마지막 메시지가 user이고 assistant 응답이 없으면 답변 생성
     if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-        with st.chat_message("assistant"):
-            with st.spinner("답변 생성 중..."):
-                try:
-                    response = ask(st.session_state.messages[-1]["content"], st.session_state.messages)
-                except Exception as e:
-                    response = f"오류가 발생했습니다: {str(e)}"
-            st.markdown(response)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        user_content = st.session_state.messages[-1]["content"]
+        
+        # '연락처'나 '담당자' 키워드가 포함된 질문인지 확인하여 팝업 유도
+        if ("담당자" in user_content or "연락처" in user_content) and "알려줘" in user_content:
+             # 팝업을 바로 띄우기 위해 상태 변경 후 리런
+             response = "담당자 연락처를 찾으시는군요. 아래 팝업에서 관할 사업소를 선택해주세요."
+             st.session_state.messages.append({"role": "assistant", "content": response})
+             st.session_state.show_contact_popup = True
+             st.rerun()
+        else:
+            with st.chat_message("assistant"):
+                with st.spinner("답변 생성 중..."):
+                    try:
+                        response = ask(user_content, st.session_state.messages)
+                    except Exception as e:
+                        response = f"오류가 발생했습니다: {str(e)}"
+                st.markdown(response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
 
     # 직접 입력
     if prompt := st.chat_input("효율향상사업에 대해 질문해주세요..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        with st.chat_message("assistant"):
-            with st.spinner("답변 생성 중..."):
-                try:
-                    response = ask(prompt, st.session_state.messages)
-                except Exception as e:
-                    response = f"오류가 발생했습니다: {str(e)}"
-            st.markdown(response)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        st.rerun()
 
 # ========== 연락처 탭 ==========
 with tab_contacts:

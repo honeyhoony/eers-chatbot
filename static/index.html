@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한전 효율향상사업 챗봇</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+        :root {
+            --primary: #4A90E2;
+            --primary-dark: #357ABD;
+            --bg-color: #F0F2F5;
+            --chat-bg: white;
+            --user-bubble: #4A90E2;
+            --bot-bubble: #E9ECEF;
+            --text-main: #333;
+            --text-sub: #666;
+            --radius: 16px;
+        }
+
+        body {
+            font-family: Pretendard, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 480px;
+            background: var(--chat-bg);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            height: 100vh;
+            position: relative;
+        }
+
+        header {
+            background: linear-gradient(135deg, #4A90E2, #7a60e0);
+            color: white;
+            padding: 16px 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        header .status {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: #F8F9FA;
+            scroll-behavior: smooth;
+        }
+
+        .message-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .message-group.user {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .message-group.bot {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            position: relative;
+            word-break: break-word;
+            white-space: pre-wrap;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .message.user {
+            background-color: var(--user-bubble);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot {
+            background-color: white;
+            color: var(--text-main);
+            border: 1px solid #E0E0E0;
+            border-bottom-left-radius: 4px;
+        }
+
+        /* 테이블 스타일 */
+        .message table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin: 8px 0;
+        }
+
+        .message th,
+        .message td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: left;
+        }
+
+        .message th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+        }
+
+        /* 액션 버튼들 */
+        .action-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: transform 0.1s;
+            border: none;
+        }
+
+        .action-btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-call {
+            background-color: #E3F2FD;
+            color: #1976D2;
+        }
+
+        .btn-download {
+            background-color: #E8F5E9;
+            color: #2E7D32;
+        }
+
+        .btn-link {
+            background-color: #FFF3E0;
+            color: #E65100;
+        }
+
+        .input-area {
+            padding: 12px 16px;
+            background: white;
+            border-top: 1px solid #E0E0E0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        #user-input:focus {
+            border-color: var(--primary);
+        }
+
+        #send-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        #send-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        #send-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+            margin-left: 2px;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid #E0E0E0;
+            border-radius: var(--radius);
+            width: fit-content;
+            align-self: flex-start;
+            margin-bottom: 10px;
+            border-bottom-left-radius: 4px;
+            display: none;
+            margin-left: 20px;
+        }
+
+        .typing-indicator span {
+            width: 6px;
+            height: 6px;
+            background: #999;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 시나리오 버튼 스타일 */
+        .scenario-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+            animation: fadeIn 0.3s ease;
+            width: 100%;
+        }
+
+        .scenario-container.grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .scenario-btn {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .scenario-btn.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .scenario-btn:hover {
+            background: #f8f9fa;
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .scenario-btn::after {
+            content: '›';
+            font-size: 1.2rem;
+            color: #ccc;
+        }
+
+        .chip-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .chip-btn {
+            background: white;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chip-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* --------------- 모달 스타일 --------------- */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            animation: fadeOverlay 0.2s;
+        }
+
+        .modal {
+            background: white;
+            width: 85%;
+            max-width: 320px;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            animation: popModal 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        .modal h3 {
+            margin: 0 0 16px;
+            font-size: 1.1rem;
+            color: var(--primary-dark);
+        }
+
+        .modal-content {
+            font-size: 0.9rem;
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 24px;
+            text-align: left;
+            background: #F8F9FA;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .modal-btn.cancel {
+            background: #F0F2F5;
+            color: #666;
+        }
+
+        .modal-btn.confirm {
+            background: var(--primary);
+            color: white;
+        }
+
+        @keyframes fadeOverlay {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes popModal {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <h1>한전 대구본부 효율향상사업 챗봇</h1>
+            <div class="status">● 온라인</div>
+        </header>
+
+        <div id="chat-container">
+            <div class="message-group bot">
+                <div class="message" style="white-space: normal;">안녕하세요! 한국전력 대구본부 <b>효율향상사업 챗봇</b>입니다.<br><br>먼저 사업장이
+                    위치한 <b>관할 사업소</b>를 선택해주세요.<br><br><a href="/static/files/2026년_대구본부_효율향상사업_1차_공고문.pdf"
+                        target="_blank" class="action-btn btn-download"
+                        style="width: fit-content; text-decoration: none;">📄 2026년 대구본부 공고문 보기</a></div>
+                <!-- 1단계: 관할사업소 선택 (사용자 요청 리스트 적용) -->
+                <div class="scenario-container grid-2" id="step1">
+                    <button class="scenario-btn" onclick="showRegionModal('대구 직할')">대구 직할</button>
+                    <button class="scenario-btn" onclick="showRegionModal('동대구지사')">동대구지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('남대구지사')">남대구지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('서대구지사')">서대구지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('칠곡지사')">칠곡지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('경산지사')">경산지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('영천지사')">영천지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('성주지사')">성주지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('고령지사')">고령지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('경주지사')">경주지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('청도지사')">청도지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('영덕지사')">영덕지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('포항지사')">포항지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('북포항지사')">북포항지사</button>
+                    <button class="scenario-btn" onclick="showRegionModal('김천지사')">김천지사</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="loading"><span></span><span></span><span></span></div>
+
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="질문을 입력하세요..." onkeypress="handleKeyPress(event)">
+            <button id="send-btn" onclick="sendInputMessage()">
+                <svg viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- 지역 상세 팝업 (Modal) -->
+        <div id="region-modal" class="modal-overlay">
+            <div class="modal">
+                <h3 id="modal-title">관할구역 확인</h3>
+                <div id="modal-desc" class="modal-content"></div>
+                <div class="modal-buttons">
+                    <button class="modal-btn cancel" onclick="closeModal()">취소</button>
+                    <button class="modal-btn confirm" onclick="confirmRegion()">선택 완료</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const loading = document.getElementById('loading');
+        const modal = document.getElementById('region-modal');
+
+        let chatHistory = [];
+        let selectedDevice = "";
+        let selectedRegion = "";
+        let pendingRegion = "";
+
+        // [관할구역 상세 데이터] (사용자 제공 정보 반영)
+        const regionDetails = {
+            "대구 직할": "<b>대구 중구, 북구 전역</b>",
+            "동대구지사": "<b>동구, 수성구, 달성군(가창면)</b>",
+            "경주지사": "경주시 전역",
+            "남대구지사": "<b>달서구 일부</b><br>(감삼, 두류, 성당, 죽전, 장기, 본리동 제외)<br><b>달성군 일부</b><br>(화원, 논공, 옥포, 현풍, 유가, 구지)<br>※ 용산동 (사업소 문의)",
+            "서대구지사": "<b>서구, 남구 전역</b><br><b>달성군 일부</b>(다사읍, 하빈면)<br><b>달서구 일부</b>(장기, 감삼, 두류, 성당, 죽전, 본리)<br>※ 용산동 (사업소 문의)",
+            "포항지사": "<b>포항시 남구 전역</b><br><b>북구 일부</b>(연일, 오천, 구룡포, 대송, 장기, 동해, 호미곶)",
+            "경산지사": "경산시 전역",
+            "김천지사": "김천시 전역",
+            "영천지사": "영천시 전역",
+            "칠곡지사": "<b>칠곡군</b>(왜관, 석적, 북삼, 기산, 약목, 지천, 동명)<br>가산면(다부리, 학산리, 금화리)",
+            "성주지사": "성주군 전역",
+            "청도지사": "청도군 전역",
+            "북포항지사": "<b>포항시 북구 일부</b><br>(흥해, 송라, 청하, 신광, 죽장, 기계, 기북)",
+            "고령지사": "고령군 전역",
+            "영덕지사": "영덕군 전역"
+        };
+
+        // 공고문 & 신청서류 매핑 (기존 유지)
+        const deviceFiles = {
+            "고효율 LED": "01. 2026년도 효율향상사업 고효율 LED 세부 지원기준(1차).pdf",
+            "스마트 LED": "14. 2026년도 효율향상사업 스마트 LED 세부 지원기준(1차).pdf",
+            "고효율 인버터": "02. 2026년도 효율향상사업 고효율 인버터 세부 지원기준(1차).pdf",
+            "인버터제어형 공기압축기": "05. 2026년도 효율향상사업 인버터제어형 공기압축기 세부 지원기준(1차).pdf",
+            "터보압축기": "07. 2026년도 효율향상사업 고효율 터보압축기 세부 지원기준(1차).pdf",
+            "PCM 에어드라이어": "15. 2026년도 효율향상사업 PCM에어드라이어 세부 지원기준(1차).pdf",
+            "전동식 사출성형기": "04. 2026년도 효율향상사업 전동식 사출성형기 세부 지원기준(1차).pdf",
+            "프리미엄 전동기": "08. 2026년도 효율향상사업 프리미엄전동기 세부 지원기준(1차).pdf",
+            "고효율 펌프": "09. 2026년도 효율향상사업 고효율 펌프 세부 지원기준(1차).pdf",
+            "원심식 송풍기": "17. 2026년도 효율향상사업 원심식 송풍기 지원 공고(1차).pdf",
+            "회생제동장치": "06. 2026년도 효율향상사업 회생제동장치 세부 지원기준(1차).pdf",
+            "고효율 변압기": "03. 2026년도 효율향상사업 고효율 변압기 세부 지원기준(1차).pdf",
+            "고효율 냉동기": "10. 2026년도 효율향상사업 고효율 냉동기 세부 지원기준(1차).pdf",
+            "항온항습기": "16. 2026년도 효율향상사업 고효율 항온항습기 지원 공고(1차).pdf",
+            "히트펌프 (육상수조/시설원예)": "12. 2026년도 효율향상사업 시설원예 히트펌프 세부 지원기준(1차).pdf",
+            "히트펌프 김건조기": "11. 2026년도 효율향상사업 히트펌프 김건조기 세부 지원기준(1차).pdf",
+            "사회복지시설 냉난방기": "2025년도 효율향상사업 사회복지시설 냉난방기 세부 지원기준(1차)_최종.pdf",
+            "양어장 펌프": "18. 2026년도 효율향상사업 양어장 펌프 지원 공고(1차).pdf"
+        };
+        const formFiles = {
+            "고효율 LED": "01. 붙임1. 2026년도 효율향상사업 고효율 LED 신청서류.pdf",
+            "스마트 LED": "14. 붙임1. 2026년도 효율향상사업 스마트 LED 신청서류.pdf",
+            "고효율 인버터": "02. 붙임1. 2026년도 효율향상사업 고효율 인버터 신청서류.pdf",
+            "인버터제어형 공기압축기": "05. 붙임1. 2026년도 효율향상사업 인버터제어형 공기압축기 신청서류.pdf",
+            "터보압축기": "07. 붙임1. 2026년도 효율향상사업 고효율 터보압축기 신청서류.pdf",
+            "PCM 에어드라이어": "15. 붙임1. 2026년도 효율향상사업 PCM에어드라이어 신청서류.pdf",
+            "전동식 사출성형기": "04. 붙임1. 2026년도 효율향상사업 전동식 사출성형기 신청서류.pdf",
+            "프리미엄 전동기": "08. 붙임1. 2026년도 효율향상사업 프리미엄 전동기 신청서류.pdf",
+            "고효율 펌프": "09. 붙임1. 2026년도 효율향상사업 고효율 펌프 신청서류.pdf",
+            "원심식 송풍기": "17. 붙임1. 2026년도 효율향상사업 원심식송풍기 신청서류.pdf",
+            "회생제동장치": "06. 붙임1. 2026년도 효율향상사업 회생제동장치 신청서류.pdf",
+            "고효율 변압기": "03. 붙임1. 2026년도 효율향상사업 고효율 변압기 신청서류.pdf",
+            "고효율 냉동기": "10. 붙임1. 2026년도 효율향상사업 고효율 냉동기 신청서류.pdf",
+            "항온항습기": "16. 붙임1. 2026년도 효율향상사업 항온항습기 신청서류.pdf",
+            "히트펌프 (육상수조/시설원예)": "12. 붙임1. 2026년도 효율향상사업 시설원예 히트펌프 신청서류.pdf",
+            "히트펌프 김건조기": "11. 붙임1. 2026년도 효율향상사업 히트펌프 김건조기 신청서류.pdf",
+            "사회복지시설 냉난방기": "2025년도 효율향상사업 사회복지시설 냉난방기 세부 지원기준(1차)_최종.pdf",
+            "양어장 펌프": "18. 붙임1. 2026년도 효율향상사업 양어장펌프 신청서류.pdf"
+        };
+
+        function scrollToBottom() { chatContainer.scrollTop = chatContainer.scrollHeight; }
+
+        function addMessageGroup(text, sender, isHtml = false) {
+            const group = document.createElement('div');
+            group.className = `message-group ${sender}`;
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            if (isHtml) { msgDiv.innerHTML = marked.parse(text); } else { msgDiv.innerHTML = text; }
+            group.appendChild(msgDiv);
+
+            if (sender === 'bot') {
+                const actionContainer = document.createElement('div');
+                actionContainer.className = 'action-container';
+                let hasAction = false;
+
+                const phoneRegex = /0\d{1,2}-\d{3,4}-\d{4}/g;
+                const phones = text.match(phoneRegex);
+                if (phones) {
+                    const uniquePhones = [...new Set(phones)];
+                    uniquePhones.forEach(phone => {
+                        const callBtn = document.createElement('a');
+                        callBtn.className = 'action-btn btn-call';
+                        callBtn.href = `tel:${phone}`;
+                        callBtn.innerHTML = `📞 ${phone} 전화걸기`;
+                        actionContainer.appendChild(callBtn);
+                        hasAction = true;
+                    });
+                }
+                if (text.includes("신청서") || text.includes("서류")) {
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.className = 'action-btn btn-download';
+                    const formFile = formFiles[selectedDevice] ? encodeURIComponent(formFiles[selectedDevice]) : null;
+                    if (formFile) {
+                        downloadBtn.href = `/static/files/${formFile}`;
+                        downloadBtn.target = "_blank";
+                        downloadBtn.innerHTML = `📄 ${selectedDevice} 신청서류 다운로드`;
+                        actionContainer.appendChild(downloadBtn);
+                        hasAction = true;
+                    }
+                }
+                if (hasAction) group.appendChild(actionContainer);
+            }
+            chatContainer.appendChild(group);
+            scrollToBottom();
+            return group;
+        }
+
+        // 모달 및 선택 로직
+        function showRegionModal(regionName) {
+            pendingRegion = regionName;
+            document.getElementById('modal-title').innerText = `${regionName} 관할구역`;
+            document.getElementById('modal-desc').innerHTML = regionDetails[regionName] || "정보 없음";
+            modal.style.display = 'flex';
+        }
+        function closeModal() { modal.style.display = 'none'; }
+        function confirmRegion() { closeModal(); selectRegion(pendingRegion); }
+
+        function selectRegion(region) {
+            selectedRegion = region;
+            addMessageGroup(region, 'user');
+            document.getElementById('step1').style.display = 'none';
+            setTimeout(() => {
+                const group = addMessageGroup("어떤 설비에 관심이 있으신가요?", 'bot');
+                const deviceDiv = document.createElement('div');
+                deviceDiv.className = 'scenario-container grid-2';
+                deviceDiv.id = 'step2';
+
+                const devices = [
+                    "고효율 LED", "스마트 LED", "고효율 인버터", "인버터제어형 공기압축기",
+                    "터보압축기", "PCM 에어드라이어", "전동식 사출성형기", "프리미엄 전동기",
+                    "고효율 펌프", "원심식 송풍기", "회생제동장치", "고효율 변압기",
+                    "고효율 냉동기", "항온항습기", "히트펌프 (육상수조/시설원예)",
+                    "히트펌프 김건조기", "사회복지시설 냉난방기", "양어장 펌프"
+                ];
+                devices.forEach(dev => {
+                    const btn = document.createElement('button');
+                    btn.className = 'scenario-btn';
+                    btn.innerText = dev;
+                    btn.onclick = () => selectDevice(dev);
+                    deviceDiv.appendChild(btn);
+                });
+                const otherBtn = document.createElement('button');
+                otherBtn.className = 'scenario-btn full-width';
+                otherBtn.innerText = "🔍 기타 설비 (직접 입력)";
+                otherBtn.onclick = () => selectDevice('기타 설비');
+                deviceDiv.appendChild(otherBtn);
+                group.appendChild(deviceDiv);
+                scrollToBottom();
+            }, 500);
+        }
+
+        function selectDevice(device) {
+            selectedDevice = device;
+            addMessageGroup(device, 'user');
+            document.getElementById('step2').style.display = 'none';
+            if (device === '기타 설비') {
+                addMessageGroup("궁금한 내용을 직접 입력해주세요.", 'bot');
+                userInput.focus();
+                return;
+            }
+            setTimeout(() => {
+                const group = addMessageGroup(`'${selectedDevice}' 관련 공고문 및 신청 링크입니다.`, 'bot');
+                const actionContainer = document.createElement('div');
+                actionContainer.className = 'action-container';
+
+                const downloadBtn = document.createElement('a');
+                downloadBtn.className = 'action-btn btn-download';
+                const fileName = deviceFiles[device] ? encodeURIComponent(deviceFiles[device]) : "notice.pdf";
+                downloadBtn.href = `/static/files/${fileName}`;
+                downloadBtn.target = "_blank";
+                downloadBtn.innerHTML = `📄 공고문 보기`;
+                actionContainer.appendChild(downloadBtn);
+
+                const applyBtn = document.createElement('a');
+                applyBtn.className = 'action-btn btn-link';
+                applyBtn.href = "https://en-ter.co.kr/ft/biz/eers/eersApply/info.do";
+                applyBtn.target = "_blank";
+                applyBtn.innerHTML = `🌐 온라인 신청 (에너지마켓플레이스)`;
+                actionContainer.appendChild(applyBtn);
+                group.appendChild(actionContainer);
+
+                const scenarioDiv = document.createElement('div');
+                scenarioDiv.className = 'scenario-container';
+                scenarioDiv.id = 'step3';
+                scenarioDiv.innerHTML = `
+                    <button class="scenario-btn" onclick="askQuestion('참여 절차')">📝 참여 절차</button>
+                    <button class="scenario-btn" onclick="askQuestion('필요 서류')">📄 필요 서류</button>
+                    <button class="scenario-btn" onclick="askQuestion('지원금 기준')">💰 지원금 기준</button>
+                    <button class="scenario-btn" onclick="askQuestion('지원 대상(자격 요건)')">✅ 지원 대상(자격 요건)</button>
+                    <button class="scenario-btn" onclick="askQuestion('신청 기간')">📅 신청 기간</button>
+                    <button class="scenario-btn" onclick="askQuestion('관할지사 담당자')">📞 관할지사 담당자</button>
+                `;
+                setTimeout(() => {
+                    const qGroup = addMessageGroup("무엇이 궁금하신가요?", 'bot');
+                    qGroup.appendChild(scenarioDiv);
+                    scrollToBottom();
+                }, 800);
+            }, 500);
+        }
+
+        function askQuestion(topic) {
+            const step3 = document.getElementById('step3');
+            if (step3) step3.style.display = 'none';
+
+            let query = `${topic}에 대해 알려줘`;
+
+            if (topic === '관할지사 담당자') {
+                query = `${selectedRegion} 담당자 연락처 알려줘`;
+            } else if (topic === '필요 서류') {
+                query = `${selectedDevice} 지원사업 신청 시 제출해야 하는 신청서류 양식 및 구비서류 목록을 알려줘`;
+            } else if (topic === '지원금 기준') {
+                query = `${selectedDevice} 지원금 단가 및 지원 한도 기준을 상세히 표로 보여줘`;
+            }
+
+            addMessageGroup(topic, 'user');
+            sendMessage(query);
+        }
+
+        function sendInputMessage() { sendMessage(userInput.value); }
+
+        async function sendMessage(text) {
+            if (!text) return;
+            text = text.trim();
+            const lastMsg = chatContainer.lastElementChild;
+            if (!lastMsg || !lastMsg.classList.contains('message-group') || !lastMsg.classList.contains('user') || lastMsg.innerText.trim() !== text) {
+                if (userInput.value === text) { addMessageGroup(text, 'user'); userInput.value = ''; }
+            }
+            chatContainer.appendChild(loading);
+            loading.style.display = 'flex';
+            scrollToBottom();
+            chatHistory.push({ role: "user", content: text });
+
+            let serverQuery = text;
+
+            // 문맥 유지 로직 강화
+            if (selectedDevice && !text.includes(selectedDevice) && !text.includes("지역") && !text.includes("담당자")) {
+                serverQuery = `${selectedDevice} ${text}`;
+            }
+            // 담당자/연락처 질문 시 지역 정보 자동 포함 (사용자 피드백 반영)
+            if (selectedRegion && (text.includes("담당자") || text.includes("연락처"))) {
+                if (!text.includes(selectedRegion)) {
+                    serverQuery = `${selectedRegion} ${text}`;
+                }
+            }
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: serverQuery, history: chatHistory })
+                });
+                const data = await response.json();
+                loading.style.display = 'none';
+                if (data.response) {
+                    const botGroup = addMessageGroup(data.response, 'bot', true);
+                    chatHistory.push({ role: "assistant", content: data.response });
+                    const chipDiv = document.createElement('div');
+                    chipDiv.className = 'chip-container';
+
+                    const suggestions = [];
+                    if (!text.includes("지원금") && !data.response.includes("지원금")) suggestions.push("지원금 기준은?");
+                    if (!text.includes("서류") && !data.response.includes("서류")) suggestions.push("필요 서류는?");
+                    if (!text.includes("담당자")) suggestions.push("담당자 연락처는?");
+
+                    suggestions.forEach(sugg => {
+                        const btn = document.createElement('button');
+                        btn.className = 'chip-btn';
+                        btn.innerText = sugg;
+                        btn.onclick = () => {
+                            addMessageGroup(sugg, 'user');
+                            sendMessage(sugg);
+                            chipDiv.style.display = 'none';
+                        };
+                        chipDiv.appendChild(btn);
+                    });
+                    const resetBtn = document.createElement('button');
+                    resetBtn.className = 'chip-btn';
+                    resetBtn.style.borderColor = '#666'; resetBtn.style.color = '#666';
+                    resetBtn.innerText = "🔄 처음으로 (지역/기기 다시 선택)";
+                    resetBtn.onclick = () => location.reload();
+                    chipDiv.appendChild(resetBtn);
+                    botGroup.appendChild(chipDiv);
+                    scrollToBottom();
+                } else { addMessageGroup("오류가 발생했습니다.", 'bot'); }
+            } catch (error) {
+                loading.style.display = 'none';
+                addMessageGroup("서버 연결 실패.", 'bot');
+                console.error(error);
+            }
+        }
+        function handleKeyPress(e) { if (e.key === 'Enter') { sendInputMessage(); } }
+    </script>
+</body>
+
+</html>

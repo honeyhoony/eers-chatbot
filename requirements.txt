@@ -4,3 +4,4 @@ supabase
 python-dotenv
 pdfplumber
 requests
+duckduckgo-search

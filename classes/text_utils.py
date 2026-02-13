@@ -29,7 +29,7 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     return text.strip()
 
 
-def chunk_text(text: str, chunk_size: int = 800, chunk_overlap: int = 150) -> list[str]:
+def chunk_text(text: str, chunk_size: int = 1500, chunk_overlap: int = 300) -> list[str]:
     """
     텍스트를 지정된 크기의 청크로 나눕니다.
     chunk_size: 각 청크의 최대 문자 수
